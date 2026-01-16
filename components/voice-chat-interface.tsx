@@ -278,6 +278,9 @@ export function VoiceChatInterface() {
                       targetLanguage: displayLanguageCode,
                     })
                   }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                 }
               }
@@ -314,7 +317,11 @@ export function VoiceChatInterface() {
       }
     }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   }, [isInRoom, roomId, userId, targetLanguage])
+=======
+  }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
+>>>>>>> Stashed changes
 =======
   }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
 >>>>>>> Stashed changes
@@ -337,6 +344,9 @@ export function VoiceChatInterface() {
           sourceLanguage: userLanguage.code,
           targetLanguage: userLanguage.code,
           avatarUrl: profile?.avatar_url ?? undefined,
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         }),
       })
@@ -381,7 +391,10 @@ export function VoiceChatInterface() {
       setMessages([])
       setUsers([])
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
       setRoomUserId("")
       setJoinedAuthUserId(null)
       setLiveCaption(null)
@@ -568,8 +581,11 @@ export function VoiceChatInterface() {
       }
     },
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     [userLanguage, roomId, userId, userName, toast],
 =======
+=======
+>>>>>>> Stashed changes
     [roomId, roomUserId, toast, userLanguage.code, userLanguage.name, userName, users],
   )
 
@@ -642,6 +658,9 @@ export function VoiceChatInterface() {
       }
     },
     [roomId, roomUserId, toast, userLanguage.code, userLanguage.name, userName, users],
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   )
 

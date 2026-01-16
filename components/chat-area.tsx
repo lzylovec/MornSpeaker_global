@@ -25,6 +25,23 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
   const lastMessage = messages[messages.length - 1]
   const lastMessageId = lastMessage?.id
   const lastMessageIsUser = lastMessage?.isUser === true
+<<<<<<< Updated upstream
+=======
+
+  const getLanguageName = (value: string): string => {
+    const byCode = SUPPORTED_LANGUAGES.find((l) => l.code === value)
+    if (byCode) return byCode.name
+    return value
+  }
+
+  const normalizeToLanguageCode = (value: string): string => {
+    const byCode = SUPPORTED_LANGUAGES.find((l) => l.code === value)
+    if (byCode) return byCode.code
+    const byName = SUPPORTED_LANGUAGES.find((l) => l.name === value)
+    if (byName) return byName.code
+    return value
+  }
+>>>>>>> Stashed changes
 
   useEffect(() => {
     const root = scrollAreaRef.current
@@ -49,7 +66,11 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   }, [messages])
+=======
+  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
+>>>>>>> Stashed changes
 =======
   }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
 >>>>>>> Stashed changes

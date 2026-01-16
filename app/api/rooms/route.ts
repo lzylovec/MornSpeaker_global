@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
 // In-memory storage for rooms (in production, use a database)
 const rooms = new Map<
@@ -30,12 +31,22 @@ const rooms = new Map<
 =======
 import { getRoomStore } from "@/lib/store"
 >>>>>>> Stashed changes
+=======
+import { getRoomStore } from "@/lib/store"
+>>>>>>> Stashed changes
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { action, roomId, userId, userName, sourceLanguage, targetLanguage, message, avatarUrl } = body
     const store = getRoomStore()
+<<<<<<< Updated upstream
+=======
+
+    if (typeof action !== "string" || action.length === 0) {
+      return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 })
+    }
+>>>>>>> Stashed changes
 
     if (action === "join") {
 <<<<<<< Updated upstream
@@ -74,6 +85,9 @@ export async function POST(request: NextRequest) {
           ? avatarUrl.trim()
           : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
       const user = {
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         id: userId,
         name: userName,
@@ -92,6 +106,7 @@ export async function POST(request: NextRequest) {
 
     if (action === "leave") {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       // Leave room
       const room = rooms.get(roomId)
       if (room) {
@@ -101,6 +116,8 @@ export async function POST(request: NextRequest) {
         }
       }
 =======
+=======
+>>>>>>> Stashed changes
       if (typeof roomId !== "string" || roomId.trim().length === 0) {
         return NextResponse.json({ success: false, error: "Invalid roomId" }, { status: 400 })
       }
@@ -109,11 +126,15 @@ export async function POST(request: NextRequest) {
       }
 
       await store.leaveRoom(roomId, userId)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
       return NextResponse.json({ success: true })
     }
 
     if (action === "message") {
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
       // Add message to room
       const room = rooms.get(roomId)
@@ -123,10 +144,30 @@ export async function POST(request: NextRequest) {
 
       room.messages.push(message)
 =======
+=======
       if (typeof roomId !== "string" || roomId.trim().length === 0) {
         return NextResponse.json({ success: false, error: "Invalid roomId" }, { status: 400 })
       }
 
+      if (typeof message !== "object" || message === null) {
+        return NextResponse.json({ success: false, error: "Invalid message" }, { status: 400 })
+      }
+
+      const savedMessage = await store.sendMessage(roomId, message)
+
+      return NextResponse.json({
+        success: true,
+        message: savedMessage,
+      })
+    }
+
+    if (action === "poll") {
+>>>>>>> Stashed changes
+      if (typeof roomId !== "string" || roomId.trim().length === 0) {
+        return NextResponse.json({ success: false, error: "Invalid roomId" }, { status: 400 })
+      }
+
+<<<<<<< Updated upstream
       if (typeof message !== "object" || message === null) {
         return NextResponse.json({ success: false, error: "Invalid message" }, { status: 400 })
       }
@@ -150,6 +191,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Invalid roomId" }, { status: 400 })
       }
 
+      const roomData = await store.getRoom(roomId)
+      if (!roomData) {
+>>>>>>> Stashed changes
+=======
       const roomData = await store.getRoom(roomId)
       if (!roomData) {
 >>>>>>> Stashed changes

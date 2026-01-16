@@ -29,6 +29,9 @@ export default function RootLayout({
         <AuthProvider>{children}</AuthProvider>
         <Toaster />
         <SonnerToaster />
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         <Analytics />
       </body>
