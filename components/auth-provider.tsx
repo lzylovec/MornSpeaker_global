@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { type Session, type User } from '@supabase/supabase-js'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser'
+import { type Session, type User, type AuthChangeEvent } from '@supabase/supabase-js'
 
 export type Profile = {
   id: string
@@ -28,9 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const supabase = createClient()
+  const supabase = useMemo(() => getSupabaseBrowserClient(), [])
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error fetching profile:', error)
       setProfile(null)
     }
-  }
+  }, [supabase])
 
   const refreshProfile = async () => {
     if (user) {
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
@@ -99,12 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase, fetchProfile])
 
   return (
     <AuthContext.Provider value={{
       session,
-      user, 
+      user,
       profile,
       isLoading,
       refreshProfile,
