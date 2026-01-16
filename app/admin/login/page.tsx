@@ -49,17 +49,17 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">后台管理登录</CardTitle>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4 py-10 sm:py-16">
+      <Card className="w-full max-w-lg shadow-sm">
+        <CardHeader className="space-y-2 pb-5">
+          <CardTitle className="text-3xl font-bold tracking-tight">后台管理登录</CardTitle>
           <CardDescription>
             请输入您的账号和密码
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
               <Label htmlFor="email">邮箱</Label>
               <Input
                 id="email"
@@ -67,22 +67,24 @@ export default function AdminLoginPage() {
                 placeholder="admin@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="h-11"
                 required
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="password">密码</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="h-11"
                 required
               />
             </div>
           </CardContent>
-          <CardFooter>
-            <Button className="w-full" type="submit" disabled={isLoading}>
+          <CardFooter className="pt-2">
+            <Button className="h-11 w-full" type="submit" disabled={isLoading}>
               {isLoading ? "登录中..." : "登录"}
             </Button>
           </CardFooter>

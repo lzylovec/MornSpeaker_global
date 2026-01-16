@@ -74,8 +74,8 @@ export class SupabaseRoomStore implements RoomStore {
   }
 
   async getRoom(roomId: string): Promise<RoomData | null> {
-    // Fetch users and messages in parallel
-    const [usersResult, messagesResult] = await Promise.all([
+    const [roomResult, usersResult, messagesResult] = await Promise.all([
+      this.supabase.from("rooms").select("created_at").eq("id", roomId).maybeSingle(),
       this.supabase.from("room_users").select("data").eq("room_id", roomId),
       this.supabase
         .from("room_messages")
@@ -84,6 +84,11 @@ export class SupabaseRoomStore implements RoomStore {
         .order("created_at", { ascending: true }),
     ])
 
+    if (roomResult.error) {
+      console.error("Supabase fetch room error:", roomResult.error)
+      return null
+    }
+    if (!roomResult.data) return null
     if (usersResult.error) {
       console.error("Supabase fetch users error:", usersResult.error)
       return null
@@ -92,6 +97,11 @@ export class SupabaseRoomStore implements RoomStore {
       console.error("Supabase fetch messages error:", messagesResult.error)
       return null
     }
+
+    const createdAt =
+      typeof (roomResult.data as { created_at?: unknown }).created_at === "string"
+        ? ((roomResult.data as { created_at: string }).created_at as string)
+        : undefined
 
     const usersRows = (usersResult.data ?? []) as Array<{ data: User }>
     const messageRows = (messagesResult.data ?? []) as Array<{ data: Message }>
@@ -103,6 +113,7 @@ export class SupabaseRoomStore implements RoomStore {
       id: roomId,
       users,
       messages,
+      createdAt,
     }
   }
 }

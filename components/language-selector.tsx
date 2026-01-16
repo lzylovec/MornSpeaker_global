@@ -4,6 +4,7 @@ import { ArrowLeftRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SUPPORTED_LANGUAGES, type Language } from "@/components/voice-chat-interface"
+import { useI18n } from "@/components/i18n-provider"
 
 type LanguageSelectorProps = {
   userLanguage: Language
@@ -20,16 +21,16 @@ export function LanguageSelector({
   onTargetLanguageChange,
   onSwap,
 }: LanguageSelectorProps) {
+  const { t } = useI18n()
   return (
     <div className="flex flex-col gap-3 bg-card rounded-xl p-4 border border-border">
       <p className="text-sm text-muted-foreground text-center">
-        Speak in <span className="font-semibold text-foreground">{userLanguage.name}</span> and hear it translated to{" "}
-        <span className="font-semibold text-foreground">{targetLanguage.name}</span>
+        {t("language.hint", { source: userLanguage.name, target: targetLanguage.name })}
       </p>
 
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">Source Language (Speak)</label>
+          <label className="text-sm font-medium text-muted-foreground mb-2 block">{t("language.source")}</label>
           <Select
             value={userLanguage.code}
             onValueChange={(code) => {
@@ -63,7 +64,7 @@ export function LanguageSelector({
         </Button>
 
         <div className="flex-1">
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">Target Language (Hear)</label>
+          <label className="text-sm font-medium text-muted-foreground mb-2 block">{t("language.target")}</label>
           <Select
             value={targetLanguage.code}
             onValueChange={(code) => {

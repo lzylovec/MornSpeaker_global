@@ -11,6 +11,10 @@ import { Users, ArrowRight, LogOut } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { SettingsDialog } from "@/components/settings-dialog"
+import { useI18n } from "@/components/i18n-provider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { UI_LOCALES, type UiLocale } from "@/lib/i18n"
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
 
 type RoomJoinProps = {
   onJoin: (roomId: string, userName: string) => void
@@ -19,18 +23,35 @@ type RoomJoinProps = {
 export function RoomJoin({ onJoin }: RoomJoinProps) {
   const { profile, user, signOut, updateProfile } = useAuth()
   const { toast } = useToast()
+  const { locale, setLocale, t } = useI18n()
   const [roomId, setRoomId] = useState("")
   const [userName, setUserName] = useState("")
   const hasEditedUserNameRef = useRef(false)
+  const [isSavingLocale, setIsSavingLocale] = useState(false)
+  const currentLocale = UI_LOCALES.find((l) => l.value === locale) ?? UI_LOCALES[0]
 
   useEffect(() => {
     if (hasEditedUserNameRef.current) return
     if (userName.trim()) return
 
     if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem("voicelink_display_name")
-      if (typeof stored === "string" && stored.trim()) {
-        setUserName(stored.trim())
+      const legacyKey = "voicelink_display_name"
+      const userKey =
+        (user?.id && `voicelink_display_name:${user.id}`) ||
+        (user?.email && `voicelink_display_name:${user.email}`) ||
+        "voicelink_display_name:anon"
+
+      const storedByUser = window.localStorage.getItem(userKey)
+      if (typeof storedByUser === "string" && storedByUser.trim()) {
+        setUserName(storedByUser.trim())
+        return
+      }
+
+      const storedLegacy = window.localStorage.getItem(legacyKey)
+      if (typeof storedLegacy === "string" && storedLegacy.trim()) {
+        const next = storedLegacy.trim()
+        window.localStorage.setItem(userKey, next)
+        setUserName(next)
         return
       }
     }
@@ -39,20 +60,26 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
     if (typeof fallback === "string" && fallback.trim()) {
       setUserName(fallback.trim())
     }
-  }, [profile?.display_name, user?.email, user?.user_metadata, userName])
+  }, [profile?.display_name, user?.email, user?.id, user?.user_metadata, userName])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (roomId.trim() && userName.trim()) {
       const nextName = userName.trim()
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("voicelink_display_name", nextName)
+        const legacyKey = "voicelink_display_name"
+        const userKey =
+          (user?.id && `voicelink_display_name:${user.id}`) ||
+          (user?.email && `voicelink_display_name:${user.email}`) ||
+          "voicelink_display_name:anon"
+        window.localStorage.setItem(userKey, nextName)
+        window.localStorage.setItem(legacyKey, nextName)
       }
       if (user && nextName !== (profile?.display_name ?? "")) {
         void updateProfile({ display_name: nextName }).catch((error) => {
           toast({
-            title: "昵称更新失败",
-            description: error instanceof Error ? error.message : "请稍后重试",
+            title: t("roomJoin.updateNameFailed"),
+            description: error instanceof Error ? error.message : t("roomJoin.retryLater"),
             variant: "destructive",
           })
         })
@@ -63,71 +90,86 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
 
   const handleQuickJoin = () => {
     const randomRoom = `room-${Math.random().toString(36).substring(2, 8)}`
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const randomName = `User${Math.floor(Math.random() * 1000)}`
-    onJoin(randomRoom, randomName)
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    const nextName = userName.trim() || `用户${Math.floor(Math.random() * 1000)}`
+    const nextName = userName.trim() || `${locale === "zh" ? "用户" : "User"}${Math.floor(Math.random() * 1000)}`
     if (typeof window !== "undefined" && nextName) {
-      window.localStorage.setItem("voicelink_display_name", nextName)
+      const legacyKey = "voicelink_display_name"
+      const userKey =
+        (user?.id && `voicelink_display_name:${user.id}`) ||
+        (user?.email && `voicelink_display_name:${user.email}`) ||
+        "voicelink_display_name:anon"
+      window.localStorage.setItem(userKey, nextName)
+      window.localStorage.setItem(legacyKey, nextName)
     }
     if (user && nextName && nextName !== (profile?.display_name ?? "")) {
-      void updateProfile({ display_name: nextName }).catch(() => { })
+      void updateProfile({ display_name: nextName }).catch(() => {})
     }
     onJoin(randomRoom, nextName)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+  }
+
+  const handleLocaleChange = async (value: string) => {
+    const nextLocale = value as UiLocale
+    const prev = locale
+    setLocale(nextLocale)
+
+    if (!user) return
+
+    setIsSavingLocale(true)
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const { error } = await supabase.auth.updateUser({ data: { ui_locale: nextLocale } })
+      if (error) throw error
+    } catch (error) {
+      setLocale(prev)
+      toast({
+        title: t("toast.errorTitle"),
+        description: error instanceof Error ? error.message : t("toast.joinFailed"),
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingLocale(false)
+    }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-lg lg:max-w-xl">
         <CardHeader className="text-center relative">
-          <div className="absolute right-4 top-4">
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            <Select value={locale} onValueChange={handleLocaleChange} disabled={isSavingLocale}>
+              <SelectTrigger className="w-[110px] h-9">
+                <SelectValue>
+                  <span className="flex items-center gap-2">
+                    <span>{currentLocale.flag}</span>
+                    <span className="hidden sm:inline">{currentLocale.label}</span>
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {UI_LOCALES.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span className="flex items-center gap-2">
+                      <span>{opt.flag}</span>
+                      <span>{opt.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <SettingsDialog />
           </div>
           <div className="w-16 h-16 rounded-2xl bg-primary mx-auto mb-4 flex items-center justify-center">
             <Users className="w-8 h-8 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl">Join Voice Chat</CardTitle>
-          <CardDescription>Connect with speakers from around the world</CardDescription>
+          <CardTitle className="text-2xl">{t("roomJoin.title")}</CardTitle>
+          <CardDescription>{t("roomJoin.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="userName">Your Name</Label>
+              <Label htmlFor="userName">{t("roomJoin.nicknameLabel")}</Label>
               <Input
                 id="userName"
-                placeholder="Enter your name"
+                placeholder={t("roomJoin.nicknamePlaceholder")}
                 value={userName}
                 onChange={(e) => {
                   hasEditedUserNameRef.current = true
@@ -138,19 +180,19 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="roomId">Room ID</Label>
+              <Label htmlFor="roomId">{t("roomJoin.roomIdLabel")}</Label>
               <Input
                 id="roomId"
-                placeholder="Enter room ID or create new"
+                placeholder={t("roomJoin.roomIdPlaceholder")}
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">Share this ID with others to join the same conversation</p>
+              <p className="text-xs text-muted-foreground">{t("roomJoin.roomIdHelp")}</p>
             </div>
 
             <Button type="submit" className="w-full gap-2" size="lg">
-              Join Room
+              {t("roomJoin.join")}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </form>
@@ -160,12 +202,12 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
               <span className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or</span>
+              <span className="bg-card px-2 text-muted-foreground">{t("common.or")}</span>
             </div>
           </div>
 
           <Button variant="outline" onClick={handleQuickJoin} className="w-full bg-transparent">
-            Quick Join (Random Room)
+            {t("roomJoin.quickJoin")}
           </Button>
 
           <Button
@@ -174,52 +216,7 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
             className="w-full text-muted-foreground hover:text-destructive"
           >
             <LogOut className="w-4 h-4 mr-2" />
-            退出登录
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={() => signOut()}
-            className="w-full text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            退出登录
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={() => signOut()}
-            className="w-full text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            退出登录
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={() => signOut()}
-            className="w-full text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            退出登录
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={() => signOut()}
-            className="w-full text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            退出登录
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={() => signOut()}
-            className="w-full text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            退出登录
+            {t("common.logout")}
           </Button>
         </CardContent>
       </Card>

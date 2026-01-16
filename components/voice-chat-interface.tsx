@@ -7,12 +7,14 @@ import { VoiceControls } from "@/components/voice-controls"
 import { LanguageSelector } from "@/components/language-selector"
 import { RoomJoin } from "@/components/room-join"
 import { UserList, type User } from "@/components/user-list"
+import { AdSlot } from "@/components/ad-slot"
 import { transcribeAudio, translateText } from "@/lib/audio-utils"
 import { useToast } from "@/hooks/use-toast"
 import type { AppSettings } from "@/components/settings-dialog"
 import { Button } from "@/components/ui/button"
 import { LogOut, Copy, Check } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
+import { useI18n } from "@/components/i18n-provider"
 
 export type Language = {
   code: string
@@ -21,14 +23,14 @@ export type Language = {
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [
-  { code: "en-US", name: "English", flag: "🇺🇸" },
+  { code: "en-US", name: "英语", flag: "🇺🇸" },
   { code: "zh-CN", name: "中文", flag: "🇨🇳" },
-  { code: "ja-JP", name: "日本語", flag: "🇯🇵" },
-  { code: "es-ES", name: "Español", flag: "🇪🇸" },
-  { code: "fr-FR", name: "Français", flag: "🇫🇷" },
-  { code: "de-DE", name: "Deutsch", flag: "🇩🇪" },
-  { code: "ko-KR", name: "한국어", flag: "🇰🇷" },
-  { code: "pt-BR", name: "Português", flag: "🇧🇷" },
+  { code: "ja-JP", name: "日语", flag: "🇯🇵" },
+  { code: "es-ES", name: "西班牙语", flag: "🇪🇸" },
+  { code: "fr-FR", name: "法语", flag: "🇫🇷" },
+  { code: "de-DE", name: "德语", flag: "🇩🇪" },
+  { code: "ko-KR", name: "韩语", flag: "🇰🇷" },
+  { code: "pt-BR", name: "葡萄牙语", flag: "🇧🇷" },
 ]
 
 export type Message = {
@@ -47,6 +49,7 @@ export type Message = {
 
 export function VoiceChatInterface() {
   const { profile, user } = useAuth()
+  const { t } = useI18n()
   const [isInRoom, setIsInRoom] = useState(false)
   const [roomId, setRoomId] = useState("")
   const [anonUserId] = useState(() => `user-${Math.random().toString(36).substring(2, 11)}`)
@@ -70,48 +73,8 @@ export function VoiceChatInterface() {
     platform: "web",
   })
   const { toast } = useToast()
-<<<<<<< Updated upstream
-  const pollIntervalRef = useRef<NodeJS.Timeout>()
-=======
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const pollAbortControllerRef = useRef<AbortController | null>(null)
-  const isPollingRef = useRef(false)
-  const liveTranslateAbortControllerRef = useRef<AbortController | null>(null)
-  const liveTranslateTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const liveTranslateCooldownUntilRef = useRef(0)
-  const translateRateLimitStepRef = useRef(0)
-  const lastLiveTranslatedTextRef = useRef("")
-  const isInRoomRef = useRef(false)
-  const roomIdRef = useRef("")
-  const pollTargetLanguageCodeRef = useRef(userLanguage.code)
-  const clearedAtRef = useRef<number>(0)
-  const translateCacheRef = useRef<Map<string, string>>(new Map())
-  const translateEnqueuedRef = useRef<Set<string>>(new Set())
-  const translateRetryAfterByKeyRef = useRef<Map<string, number>>(new Map())
-  const translateWorkerRunningRef = useRef(false)
-  const translateQueueRef = useRef<
-    Array<{
-      key: string
-      roomId: string
-      messageId: string
-      originalText: string
-      originalLanguage: string
-      targetLanguage: string
-    }>
-  >([])
-
-  const [liveCaption, setLiveCaption] = useState<{
-    userName: string
-    userAvatar?: string
-    originalText: string
-    translatedText: string
-    originalLanguage: string
-    targetLanguage: string
-  } | null>(null)
-
-  isInRoomRef.current = isInRoom
-  roomIdRef.current = roomId
-  pollTargetLanguageCodeRef.current = userLanguage.code
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const translationCacheRef = useRef<Map<string, string>>(new Map())
 
   const ensureClientInstanceId = useCallback(() => {
     if (clientInstanceIdRef.current) return clientInstanceIdRef.current
@@ -137,82 +100,27 @@ export function VoiceChatInterface() {
     return created
   }, [])
 
-  const enqueuePollTranslation = useCallback(
-    (job: {
-      key: string
-      roomId: string
-      messageId: string
-      originalText: string
-      originalLanguage: string
-      targetLanguage: string
-    }) => {
-      if (translateCacheRef.current.has(job.key)) return
-      if (translateEnqueuedRef.current.has(job.key)) return
-      translateEnqueuedRef.current.add(job.key)
-      translateQueueRef.current.push(job)
-    },
-    [],
-  )
-
-  const runTranslateWorker = useCallback(async () => {
-    if (translateWorkerRunningRef.current) return
-    translateWorkerRunningRef.current = true
-    try {
-      while (translateQueueRef.current.length > 0) {
-        if (!isInRoomRef.current) break
-        const job = translateQueueRef.current.pop()
-        if (!job) break
-        translateEnqueuedRef.current.delete(job.key)
-
-        if (job.roomId !== roomIdRef.current) continue
-        if (job.targetLanguage !== pollTargetLanguageCodeRef.current) continue
-        if (translateCacheRef.current.has(job.key)) continue
-
-        const now = Date.now()
-        if (now < liveTranslateCooldownUntilRef.current) {
-          await sleep(liveTranslateCooldownUntilRef.current - now)
-        }
-
-        try {
-          const translated = await translateText(job.originalText, job.originalLanguage, job.targetLanguage)
-          translateCacheRef.current.set(job.key, translated)
-          translateRetryAfterByKeyRef.current.delete(job.key)
-          translateRateLimitStepRef.current = 0
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== job.messageId) return m
-              if (m.targetLanguage !== job.targetLanguage) return m
-              return { ...m, translatedText: translated }
-            }),
-          )
-        } catch (error) {
-          const status = (error as { status?: number })?.status
-          if (status === 429) {
-            translateRateLimitStepRef.current = Math.min(6, translateRateLimitStepRef.current + 1)
-            const backoffMs = 5000 * translateRateLimitStepRef.current
-            const until = Date.now() + backoffMs
-            liveTranslateCooldownUntilRef.current = until
-            translateRetryAfterByKeyRef.current.set(job.key, until)
-            translateQueueRef.current.unshift(job)
-            break
-          }
-        }
+  const exitRoom = useCallback(
+    (title: string, description: string) => {
+      setIsInRoom(false)
+      setRoomId("")
+      setMessages([])
+      setUsers([])
+      setRoomUserId("")
+      setJoinedAuthUserId(null)
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
       }
-    } finally {
-      translateWorkerRunningRef.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (liveTranslateTimerRef.current) clearTimeout(liveTranslateTimerRef.current)
-      liveTranslateAbortControllerRef.current?.abort()
-    }
-  }, [])
->>>>>>> Stashed changes
+      translationCacheRef.current.clear()
+      toast({ title, description })
+    },
+    [toast],
+  )
 
   useEffect(() => {
     if (!isInRoom || !roomId || !roomUserId) return
+    const cache = translationCacheRef.current
 
     const pollRoom = async () => {
       try {
@@ -222,137 +130,75 @@ export function VoiceChatInterface() {
           body: JSON.stringify({ action: "poll", roomId }),
         })
 
-        const data = await response.json()
-        if (data.success && data.room) {
-          setUsers(data.room.users)
-
-          // Update messages with translations for current user
-<<<<<<< Updated upstream
-          const newMessages = await Promise.all(
-            data.room.messages.map(async (msg: any) => {
-              const isCurrentUser = msg.userId === userId
-              let translatedText = msg.originalText
-
-              // Translate message to current user's target language if not from current user
-              if (!isCurrentUser && msg.originalLanguage !== targetLanguage.name) {
-                try {
-                  translatedText = await translateText(msg.originalText, msg.originalLanguage, targetLanguage.name)
-                } catch (error) {
-                  console.error("[v0] Translation error:", error)
-=======
-          const displayLanguageCode = userLanguage.code
-          const usersById = new Map(room.users.map((u) => [u.id, u]))
-          const clearedAt = clearedAtRef.current
-          const newMessages = room.messages
-            .filter((msg) => {
-              const ts = Date.parse(msg.timestamp)
-              if (!Number.isFinite(ts)) return false
-              return ts > clearedAt
-            })
-            .map((msg) => {
-              const isCurrentUser = msg.userId === roomUserId
-              const key = `${room.id}:${msg.id}:${displayLanguageCode}`
-
-              let translatedText = msg.originalText
-              if (msg.targetLanguage === displayLanguageCode && typeof msg.translatedText === "string" && msg.translatedText.length > 0) {
-                translatedText = msg.translatedText
-                translateCacheRef.current.set(key, translatedText)
-              } else if (msg.originalLanguage === displayLanguageCode) {
-                translatedText = msg.originalText
-              } else {
-                const cached = translateCacheRef.current.get(key)
-                if (typeof cached === "string" && cached.length > 0) {
-                  translatedText = cached
-                } else {
-                  const retryAfter = translateRetryAfterByKeyRef.current.get(key) ?? 0
-                  if (Date.now() < retryAfter) {
-                    translatedText = "（翻译稍后重试…）"
-                  } else {
-                    translatedText = "（翻译中…）"
-                    enqueuePollTranslation({
-                      key,
-                      roomId: room.id,
-                      messageId: msg.id,
-                      originalText: msg.originalText,
-                      originalLanguage: msg.originalLanguage,
-                      targetLanguage: displayLanguageCode,
-                    })
-                  }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-                }
-              }
-
-              return {
-                id: msg.id,
-                userId: msg.userId,
-                userName: msg.userName,
-                originalText: msg.originalText,
-                translatedText,
-                originalLanguage: msg.originalLanguage,
-                targetLanguage: targetLanguage.name,
-                timestamp: new Date(msg.timestamp),
-                isUser: isCurrentUser,
-                audioUrl: msg.audioUrl,
-                userAvatar: users.find((u) => u.id === msg.userId)?.avatar,
-              }
-            }),
-          )
-
-          setMessages(newMessages)
+        if (response.status === 410) {
+          exitRoom(t("toast.expiredTitle"), t("toast.expiredDesc"))
+          return
         }
+
+        const data = (await response.json().catch(() => null)) as
+          | { success?: boolean; room?: { users: User[]; messages: Array<{ id: string; userId: string; userName: string; originalText: string; originalLanguage: string; timestamp: string; audioUrl?: string }> } }
+          | null
+        if (!data?.success || !data.room) return
+
+        const room = data.room
+        setUsers(room.users)
+
+        const avatarById = new Map(room.users.map((u) => [u.id, u.avatar]))
+        const newMessages = await Promise.all(
+          room.messages.map(async (msg) => {
+            const cacheKey = `${msg.id}:${targetLanguage.name}`
+            const cached = cache.get(cacheKey)
+
+            const isCurrentUser = msg.userId === roomUserId
+            let translatedText = msg.originalText
+
+            if (typeof cached === "string" && cached.length > 0) {
+              translatedText = cached
+            } else if (msg.originalLanguage !== targetLanguage.name) {
+              try {
+                translatedText = await translateText(msg.originalText, msg.originalLanguage, targetLanguage.name)
+                cache.set(cacheKey, translatedText)
+              } catch (error) {
+                console.error("[v0] Translation error:", error)
+              }
+            }
+
+            return {
+              id: msg.id,
+              userId: msg.userId,
+              userName: msg.userName,
+              originalText: msg.originalText,
+              translatedText,
+              originalLanguage: msg.originalLanguage,
+              targetLanguage: targetLanguage.name,
+              timestamp: new Date(msg.timestamp),
+              isUser: isCurrentUser,
+              audioUrl: msg.audioUrl,
+              userAvatar: avatarById.get(msg.userId),
+            }
+          }),
+        )
+
+        setMessages(newMessages)
       } catch (error) {
         console.error("[v0] Poll error:", error)
       }
     }
 
-    pollRoom()
-    pollIntervalRef.current = setInterval(pollRoom, 2000)
+    void pollRoom()
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+    pollIntervalRef.current = setInterval(() => {
+      void pollRoom()
+    }, 2000)
 
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
       }
+      cache.clear()
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  }, [isInRoom, roomId, userId, targetLanguage])
-=======
-  }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
->>>>>>> Stashed changes
-=======
-  }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
->>>>>>> Stashed changes
-=======
-  }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
->>>>>>> Stashed changes
-=======
-  }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
->>>>>>> Stashed changes
-=======
-  }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
->>>>>>> Stashed changes
-=======
-  }, [enqueuePollTranslation, isInRoom, roomId, roomUserId, runTranslateWorker, userLanguage.code])
->>>>>>> Stashed changes
+  }, [exitRoom, isInRoom, roomId, roomUserId, t, targetLanguage.name])
 
   const handleJoinRoom = async (newRoomId: string, newUserName: string) => {
     try {
@@ -365,29 +211,9 @@ export function VoiceChatInterface() {
           roomId: newRoomId,
           userId: participantId,
           userName: newUserName,
-<<<<<<< Updated upstream
           sourceLanguage: userLanguage.name,
           targetLanguage: targetLanguage.name,
-=======
-          sourceLanguage: userLanguage.code,
-          targetLanguage: userLanguage.code,
           avatarUrl: profile?.avatar_url ?? undefined,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }),
       })
 
@@ -400,15 +226,15 @@ export function VoiceChatInterface() {
         setIsInRoom(true)
         setUsers(data.room.users)
         toast({
-          title: "Joined room",
-          description: `Welcome to ${newRoomId}!`,
+          title: t("toast.joinedTitle"),
+          description: t("toast.joinedDesc", { roomId: newRoomId }),
         })
       }
     } catch (error) {
       console.error("[v0] Join room error:", error)
       toast({
-        title: "Error",
-        description: "Failed to join room. Please try again.",
+        title: t("toast.errorTitle"),
+        description: t("toast.joinFailed"),
         variant: "destructive",
       })
     }
@@ -416,7 +242,7 @@ export function VoiceChatInterface() {
 
   const handleLeaveRoom = useCallback(async () => {
     try {
-      await fetch("/api/rooms", {
+      const res = await fetch("/api/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -425,45 +251,15 @@ export function VoiceChatInterface() {
           userId: roomUserId,
         }),
       })
-
-      setIsInRoom(false)
-      setRoomId("")
-      setMessages([])
-      setUsers([])
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-      setRoomUserId("")
-      setJoinedAuthUserId(null)
-      setLiveCaption(null)
-      translateQueueRef.current = []
-      translateEnqueuedRef.current.clear()
-      if (liveTranslateTimerRef.current) clearTimeout(liveTranslateTimerRef.current)
-      liveTranslateAbortControllerRef.current?.abort()
->>>>>>> Stashed changes
-
-      toast({
-        title: "Left room",
-        description: "You have disconnected from the chat.",
-      })
+      if (res.status === 410) {
+        exitRoom(t("toast.expiredTitle"), t("toast.expiredDesc"))
+        return
+      }
+      exitRoom(t("toast.leftTitle"), t("toast.leftDesc"))
     } catch (error) {
       console.error("[v0] Leave room error:", error)
     }
-  }, [roomId, roomUserId, toast])
+  }, [exitRoom, roomId, roomUserId, t])
 
   useEffect(() => {
     if (!isInRoom) return
@@ -479,8 +275,8 @@ export function VoiceChatInterface() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
       toast({
-        title: "Copied!",
-        description: "Room ID copied to clipboard",
+        title: t("toast.copiedTitle"),
+        description: t("toast.copiedDesc"),
       })
     } catch (error) {
       console.error("[v0] Copy error:", error)
@@ -495,97 +291,10 @@ export function VoiceChatInterface() {
   const handleClearChat = useCallback(() => {
     setMessages([])
     toast({
-      title: "Chat cleared",
-      description: "All messages have been removed.",
+      title: t("toast.chatClearedTitle"),
+      description: t("toast.chatClearedDesc"),
     })
-  }, [toast])
-
-<<<<<<< Updated upstream
-=======
-  const scheduleLiveTranslation = useCallback(
-    (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed) {
-        if (liveTranslateTimerRef.current) clearTimeout(liveTranslateTimerRef.current)
-        liveTranslateAbortControllerRef.current?.abort()
-        setLiveCaption(null)
-        return
-      }
-
-      const avatar = users.find((u) => u.id === roomUserId)?.avatar
-      setLiveCaption({
-        userName,
-        userAvatar: avatar,
-        originalText: trimmed,
-        translatedText: userLanguage.code === targetLanguage.code ? trimmed : "",
-        originalLanguage: userLanguage.code,
-        targetLanguage: targetLanguage.code,
-      })
-
-      if (userLanguage.code === targetLanguage.code) {
-        if (liveTranslateTimerRef.current) clearTimeout(liveTranslateTimerRef.current)
-        liveTranslateAbortControllerRef.current?.abort()
-        return
-      }
-
-      if (Date.now() < liveTranslateCooldownUntilRef.current) {
-        return
-      }
-
-      if (trimmed === lastLiveTranslatedTextRef.current) {
-        return
-      }
-
-      if (liveTranslateTimerRef.current) clearTimeout(liveTranslateTimerRef.current)
-      liveTranslateTimerRef.current = setTimeout(async () => {
-        const controller = new AbortController()
-        liveTranslateAbortControllerRef.current?.abort()
-        liveTranslateAbortControllerRef.current = controller
-
-        try {
-          if (Date.now() < liveTranslateCooldownUntilRef.current) {
-            return
-          }
-          const translated = await translateText(trimmed, userLanguage.code, targetLanguage.code, controller.signal)
-          if (controller.signal.aborted) return
-          lastLiveTranslatedTextRef.current = trimmed
-          translateRateLimitStepRef.current = 0
-          setLiveCaption((prev) => {
-            if (!prev) return prev
-            if (prev.originalText !== trimmed) return prev
-            return { ...prev, translatedText: translated }
-          })
-        } catch (error) {
-          if (controller.signal.aborted) return
-          const status = (error as { status?: number })?.status
-          if (status === 429) {
-            translateRateLimitStepRef.current = Math.min(6, translateRateLimitStepRef.current + 1)
-            liveTranslateCooldownUntilRef.current = Date.now() + 5000 * translateRateLimitStepRef.current
-            setLiveCaption((prev) => {
-              if (!prev) return prev
-              if (prev.originalText !== trimmed) return prev
-              return { ...prev, translatedText: "（翻译请求过于频繁，请稍后再试。）" }
-            })
-            return
-          }
-          const message = error instanceof Error ? error.message : "翻译失败"
-          console.error("[v0] Live translation error:", error)
-          setLiveCaption((prev) => {
-            if (!prev) return prev
-            if (prev.originalText !== trimmed) return prev
-            return { ...prev, translatedText: `（${message}）` }
-          })
-        } finally {
-          if (liveTranslateAbortControllerRef.current === controller) {
-            liveTranslateAbortControllerRef.current = null
-          }
-        }
-      }, 900)
-    },
-    [roomUserId, targetLanguage.code, userLanguage.code, userName, users],
-  )
-
->>>>>>> Stashed changes
+  }, [t, toast])
   const handleRecordingComplete = useCallback(
     async (audioBlob: Blob) => {
       console.log("[v0] Recording complete, blob size:", audioBlob.size)
@@ -594,7 +303,7 @@ export function VoiceChatInterface() {
       try {
         const audioUrl = URL.createObjectURL(audioBlob)
 
-        const transcribedText = await transcribeAudio(audioBlob, userLanguage.name)
+        const transcribedText = await transcribeAudio(audioBlob, userLanguage.code)
         console.log("[v0] Transcribed text:", transcribedText)
 
         const message = {
@@ -603,11 +312,12 @@ export function VoiceChatInterface() {
           userName,
           originalText: transcribedText,
           originalLanguage: userLanguage.name,
+          targetLanguage: targetLanguage.name,
           timestamp: new Date().toISOString(),
           audioUrl,
         }
 
-        await fetch("/api/rooms", {
+        const res = await fetch("/api/rooms", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -617,127 +327,30 @@ export function VoiceChatInterface() {
           }),
         })
 
+        if (res.status === 410) {
+          exitRoom(t("toast.expiredTitle"), t("toast.expiredDesc"))
+          return
+        }
+        if (!res.ok) {
+          throw new Error("Send message failed")
+        }
+
         toast({
-          title: "Message sent",
-          description: `Broadcasting in ${userLanguage.name}`,
+          title: t("toast.sentTitle"),
+          description: t("toast.sentDesc", { language: userLanguage.name }),
         })
       } catch (error) {
         console.error("[v0] Processing error:", error)
         toast({
-          title: "Error",
-          description: "Failed to process your voice. Please try again.",
+          title: t("toast.errorTitle"),
+          description: t("toast.processFailed"),
           variant: "destructive",
         })
       } finally {
         setIsProcessing(false)
       }
     },
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    [userLanguage, roomId, userId, userName, toast],
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    [roomId, roomUserId, toast, userLanguage.code, userLanguage.name, userName, users],
-  )
-
-  const handleFinalTranscript = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed) return
-
-      if (liveTranslateTimerRef.current) clearTimeout(liveTranslateTimerRef.current)
-      liveTranslateAbortControllerRef.current?.abort()
-
-      setIsProcessing(true)
-      try {
-        const translatedText = trimmed
-
-        const message = {
-          id: Date.now().toString(),
-          userId: roomUserId,
-          userName,
-          originalText: trimmed,
-          translatedText,
-          originalLanguage: userLanguage.code,
-          targetLanguage: userLanguage.code,
-          timestamp: new Date().toISOString(),
-        }
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: message.id,
-            userId: message.userId,
-            userName: message.userName,
-            originalText: message.originalText,
-            translatedText: message.translatedText,
-            originalLanguage: message.originalLanguage,
-            targetLanguage: message.targetLanguage,
-            timestamp: new Date(message.timestamp),
-            isUser: true,
-            userAvatar: users.find((u) => u.id === message.userId)?.avatar,
-          },
-        ])
-
-        await fetch("/api/rooms", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "message",
-            roomId,
-            message,
-          }),
-        })
-
-        toast({
-          title: "消息已发送",
-          description: `正在以 ${userLanguage.name} 广播`,
-        })
-      } catch (error) {
-        const status = (error as { status?: number })?.status
-        if (status !== 429) {
-          console.error("[v0] Final transcript error:", error)
-        }
-        toast({
-          title: "出错了",
-          description: error instanceof Error ? error.message : "处理你的语音失败，请重试。",
-          variant: "destructive",
-        })
-      } finally {
-        setIsProcessing(false)
-        setLiveCaption(null)
-      }
-    },
-    [roomId, roomUserId, toast, userLanguage.code, userLanguage.name, userName, users],
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+    [exitRoom, roomId, roomUserId, t, targetLanguage.name, toast, userLanguage.code, userLanguage.name, userName],
   )
 
   if (!isInRoom) {
@@ -754,27 +367,32 @@ export function VoiceChatInterface() {
         userCount={users.length}
       />
 
-      <div className="flex-1 flex max-w-7xl w-full mx-auto px-4 py-6 gap-6 overflow-hidden">
-        <div className="hidden lg:block w-64 flex-shrink-0">
+      <div className="flex-1 flex max-w-screen-2xl w-full mx-auto px-4 py-6 gap-6 overflow-hidden min-h-0">
+        <div className="hidden lg:flex w-64 flex-shrink-0 flex-col gap-4">
           <UserList users={users} currentUserId={roomUserId} />
+          <AdSlot slotKey="room_sidebar" variant="sidebar" limit={2} fetchLimit={6} rotateMs={7000} />
         </div>
 
-        <div className="flex-1 flex flex-col gap-6 min-w-0">
+        <div className="flex-1 flex flex-col gap-6 min-w-0 min-h-0">
           <div className="flex items-center justify-between gap-4 p-4 bg-card rounded-lg border border-border">
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground">Room ID</p>
+              <p className="text-sm text-muted-foreground">{t("common.roomId")}</p>
               <p className="font-mono font-medium truncate">{roomId}</p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleCopyRoomId} className="gap-2 bg-transparent">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+                <span className="hidden sm:inline">{copied ? t("common.copied") : t("common.copy")}</span>
               </Button>
               <Button variant="outline" size="sm" onClick={handleLeaveRoom} className="gap-2 bg-transparent">
                 <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Leave</span>
+                <span className="hidden sm:inline">{t("common.leave")}</span>
               </Button>
             </div>
+          </div>
+
+          <div className="lg:hidden">
+            <AdSlot slotKey="room_inline" variant="inline" limit={1} />
           </div>
 
           <LanguageSelector

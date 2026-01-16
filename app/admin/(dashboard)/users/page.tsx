@@ -80,7 +80,7 @@ export default async function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>
                     <Avatar>
-                      <AvatarImage src={user.avatar_url} />
+                      <AvatarImage src={user.avatar_url ?? undefined} />
                       <AvatarFallback>{user.display_name?.slice(0, 2).toUpperCase() || 'U'}</AvatarFallback>
                     </Avatar>
                   </TableCell>

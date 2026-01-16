@@ -1,12 +1,14 @@
 "use client"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { Message } from "@/components/voice-chat-interface"
+import { SUPPORTED_LANGUAGES, type Message } from "@/components/voice-chat-interface"
 import { Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { useState, useEffect, useRef } from "react"
+import { useI18n } from "@/components/i18n-provider"
+import { getHtmlLang } from "@/lib/i18n"
 
 type ChatAreaProps = {
   messages: Message[]
@@ -17,6 +19,7 @@ type ChatAreaProps = {
 
 export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoPlay = false }: ChatAreaProps) {
   const { speak, stop, isSpeaking } = useTextToSpeech({ rate: speechRate, volume: speechVolume })
+  const { locale, t } = useI18n()
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -25,35 +28,22 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
   const lastMessage = messages[messages.length - 1]
   const lastMessageId = lastMessage?.id
   const lastMessageIsUser = lastMessage?.isUser === true
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
-  const getLanguageName = (value: string): string => {
+  const getLanguageLabel = (value: string): string => {
     const byCode = SUPPORTED_LANGUAGES.find((l) => l.code === value)
     if (byCode) return byCode.name
+    const byName = SUPPORTED_LANGUAGES.find((l) => l.name === value)
+    if (byName) return byName.name
     return value
   }
 
-  const normalizeToLanguageCode = (value: string): string => {
+  const getSpeechLanguageCode = (value: string): string => {
     const byCode = SUPPORTED_LANGUAGES.find((l) => l.code === value)
     if (byCode) return byCode.code
     const byName = SUPPORTED_LANGUAGES.find((l) => l.name === value)
     if (byName) return byName.code
-    return value
+    return "en-US"
   }
->>>>>>> Stashed changes
 
   useEffect(() => {
     const root = scrollAreaRef.current
@@ -77,38 +67,14 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  }, [messages])
-=======
-  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
->>>>>>> Stashed changes
-=======
-  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
->>>>>>> Stashed changes
-=======
-  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
->>>>>>> Stashed changes
-=======
-  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
->>>>>>> Stashed changes
-=======
-  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
->>>>>>> Stashed changes
-=======
-  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
->>>>>>> Stashed changes
+  }, [messages.length, lastMessageId, lastMessageIsUser])
 
   useEffect(() => {
     if (autoPlay && messages.length > 0) {
       const lastMessage = messages[messages.length - 1]
       if (lastMessage.id !== lastMessageIdRef.current) {
         lastMessageIdRef.current = lastMessage.id
-        const languageCode = getLanguageCode(lastMessage.targetLanguage)
+        const languageCode = getSpeechLanguageCode(lastMessage.targetLanguage)
         speak(lastMessage.translatedText, languageCode)
         setPlayingMessageId(`${lastMessage.id}-translated`)
       }
@@ -121,7 +87,7 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
       setPlayingMessageId(null)
     } else {
       stop()
-      const languageCode = message.isUser ? message.originalLanguage : getLanguageCode(message.originalLanguage)
+      const languageCode = getSpeechLanguageCode(message.originalLanguage)
       speak(message.originalText, languageCode)
       setPlayingMessageId(`${message.id}-original`)
     }
@@ -133,28 +99,14 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
       setPlayingMessageId(null)
     } else {
       stop()
-      const languageCode = getLanguageCode(message.targetLanguage)
+      const languageCode = getSpeechLanguageCode(message.targetLanguage)
       speak(message.translatedText, languageCode)
       setPlayingMessageId(`${message.id}-translated`)
     }
   }
 
-  const getLanguageCode = (languageName: string): string => {
-    const langMap: Record<string, string> = {
-      English: "en-US",
-      中文: "zh-CN",
-      日本語: "ja-JP",
-      Español: "es-ES",
-      Français: "fr-FR",
-      Deutsch: "de-DE",
-      한국어: "ko-KR",
-      Português: "pt-BR",
-    }
-    return langMap[languageName] || "en-US"
-  }
-
   const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
+    return new Intl.DateTimeFormat(getHtmlLang(locale), {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
@@ -168,10 +120,9 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Volume2 className="w-10 h-10 text-primary" />
           </div>
-          <h2 className="text-2xl font-semibold text-foreground mb-2">Start Your Conversation</h2>
+          <h2 className="text-2xl font-semibold text-foreground mb-2">{t("chat.empty.title")}</h2>
           <p className="text-muted-foreground leading-relaxed">
-            Press and hold the microphone button to speak in your source language. Everyone in the room will hear your
-            message translated to their target language in real-time.
+            {t("chat.empty.desc")}
           </p>
         </div>
       </div>
@@ -179,7 +130,7 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
   }
 
   return (
-    <ScrollArea className="flex-1 bg-card rounded-xl border border-border p-4" ref={scrollAreaRef}>
+    <ScrollArea className="flex-1 min-h-0 bg-card rounded-xl border border-border p-4" ref={scrollAreaRef}>
       <div className="space-y-4">
         {messages.map((message) => (
           <div
@@ -194,14 +145,13 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
             )}
 
             <div
-              className={`max-w-[70%] rounded-xl p-4 ${
-                message.isUser ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-              }`}
+              className={`max-w-[88%] md:max-w-[85%] lg:max-w-[82%] rounded-xl p-4 ${message.isUser ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                }`}
             >
               {!message.isUser && <p className="text-xs font-semibold mb-2 opacity-70">{message.userName}</p>}
 
               <div className="flex items-start justify-between gap-2 mb-2">
-                <p className="text-sm font-medium opacity-80">{message.originalLanguage}</p>
+                <p className="text-sm font-medium opacity-80">{getLanguageLabel(message.originalLanguage)}</p>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -218,7 +168,7 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
               <p className="text-base leading-relaxed mb-3">{message.originalText}</p>
               <div className="pt-3 border-t border-current/20">
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="text-sm font-medium opacity-80">{message.targetLanguage}</p>
+                  <p className="text-sm font-medium opacity-80">{getLanguageLabel(message.targetLanguage)}</p>
                   <Button
                     variant="ghost"
                     size="icon"

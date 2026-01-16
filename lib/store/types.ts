@@ -22,6 +22,7 @@ export interface RoomData {
   id: string
   users: User[]
   messages: Message[]
+  createdAt?: string
 }
 
 export interface RoomStore {

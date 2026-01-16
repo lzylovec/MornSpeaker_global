@@ -4,6 +4,7 @@ import { Users, Globe } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { useI18n } from "@/components/i18n-provider"
 
 export type User = {
   id: string
@@ -19,12 +20,13 @@ type UserListProps = {
 }
 
 export function UserList({ users, currentUserId }: UserListProps) {
+  const { t } = useI18n()
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Users className="w-4 h-4" />
-          Connected Users ({users.length})
+          {t("users.title", { count: users.length })}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -38,7 +40,7 @@ export function UserList({ users, currentUserId }: UserListProps) {
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium truncate">
                   {user.name}
-                  {user.id === currentUserId && <span className="text-xs text-muted-foreground ml-1">(You)</span>}
+                  {user.id === currentUserId && <span className="text-xs text-muted-foreground ml-1">{t("users.you")}</span>}
                 </p>
               </div>
               <div className="flex items-center gap-1 mt-1">
@@ -49,7 +51,7 @@ export function UserList({ users, currentUserId }: UserListProps) {
               </div>
             </div>
             <Badge variant="secondary" className="text-xs">
-              Online
+              {t("users.online")}
             </Badge>
           </div>
         ))}

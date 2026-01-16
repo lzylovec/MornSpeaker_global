@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/components/auth-provider"
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
 import { useState, useEffect, useMemo } from "react"
+import { useI18n } from "@/components/i18n-provider"
 
 type SettingsDialogProps = {
   onSettingsChange?: (settings: AppSettings) => void
@@ -36,6 +37,7 @@ export type AppSettings = {
 export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
   const { toast } = useToast()
   const { user, profile, updateProfile } = useAuth()
+  const { t } = useI18n()
 
   const [settings, setSettings] = useState<AppSettings>({
     darkMode: false,
@@ -95,7 +97,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
 
   const saveProfile = async () => {
     if (!user) {
-      toast({ title: "未登录", description: "请先登录后再修改账号信息。", variant: "destructive" })
+      toast({ title: t("settings.notLoggedInTitle"), description: t("settings.profileNotLoggedInDesc"), variant: "destructive" })
       return
     }
 
@@ -103,7 +105,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
     const nextAvatarUrl = avatarUrl.trim()
 
     if (!nextDisplayName) {
-      toast({ title: "昵称不能为空", description: "请填写昵称后再保存。", variant: "destructive" })
+      toast({ title: t("settings.nicknameRequiredTitle"), description: t("settings.nicknameRequiredDesc"), variant: "destructive" })
       return
     }
 
@@ -121,11 +123,11 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
         window.localStorage.setItem("voicelink_display_name", nextDisplayName)
       }
 
-      toast({ title: "已保存", description: "账号信息已更新。" })
+      toast({ title: t("settings.profileSavedTitle"), description: t("settings.profileSavedDesc") })
     } catch (e) {
       toast({
-        title: "保存失败",
-        description: e instanceof Error ? e.message : "请稍后重试。",
+        title: t("settings.profileSaveFailedTitle"),
+        description: e instanceof Error ? e.message : t("settings.profileSaveFailedDesc"),
         variant: "destructive",
       })
     } finally {
@@ -135,17 +137,17 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
 
   const updatePassword = async () => {
     if (!user) {
-      toast({ title: "未登录", description: "请先登录后再修改密码。", variant: "destructive" })
+      toast({ title: t("settings.notLoggedInTitle"), description: t("settings.notLoggedInDesc"), variant: "destructive" })
       return
     }
 
     const nextPassword = newPassword.trim()
     if (nextPassword.length < 6) {
-      toast({ title: "密码过短", description: "密码至少 6 位。", variant: "destructive" })
+      toast({ title: t("settings.passwordTooShortTitle"), description: t("settings.passwordTooShortDesc"), variant: "destructive" })
       return
     }
     if (nextPassword !== confirmPassword.trim()) {
-      toast({ title: "两次密码不一致", description: "请确认两次输入的新密码相同。", variant: "destructive" })
+      toast({ title: t("settings.passwordMismatchTitle"), description: t("settings.passwordMismatchDesc"), variant: "destructive" })
       return
     }
 
@@ -156,11 +158,11 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
       if (error) throw error
       setNewPassword("")
       setConfirmPassword("")
-      toast({ title: "密码已更新", description: "请使用新密码重新登录。" })
+      toast({ title: t("settings.passwordUpdatedTitle"), description: t("settings.passwordUpdatedDesc") })
     } catch (e) {
       toast({
-        title: "修改密码失败",
-        description: e instanceof Error ? e.message : "请稍后重试。",
+        title: t("settings.updateFailedTitle"),
+        description: e instanceof Error ? e.message : t("settings.updateFailedDesc"),
         variant: "destructive",
       })
     } finally {
@@ -175,7 +177,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `voicelink-conversation-${new Date().toISOString()}.json`
+      a.download = `MornSpeaker-conversation-${new Date().toISOString()}.json`
       a.click()
       URL.revokeObjectURL(url)
     }
@@ -190,45 +192,45 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Customize your VoiceLink experience</DialogDescription>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
+          <DialogDescription>{t("settings.desc")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           <div className="space-y-4">
-            <div className="text-sm font-medium">账号</div>
+            <div className="text-sm font-medium">{t("settings.account")}</div>
             <div className="space-y-2">
-              <Label htmlFor="account-email">邮箱</Label>
+              <Label htmlFor="account-email">{t("settings.email")}</Label>
               <Input id="account-email" value={user?.email ?? ""} readOnly />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="account-display-name">昵称</Label>
+              <Label htmlFor="account-display-name">{t("settings.nickname")}</Label>
               <Input
                 id="account-display-name"
-                placeholder="请输入昵称"
+                placeholder={t("settings.nicknamePlaceholder")}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 disabled={!user}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="account-avatar-url">头像链接（可选）</Label>
+              <Label htmlFor="account-avatar-url">{t("settings.avatar")}</Label>
               <Input
                 id="account-avatar-url"
-                placeholder="https://..."
+                placeholder={t("settings.avatarPlaceholder")}
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
                 disabled={!user}
               />
             </div>
             <Button className="w-full" onClick={saveProfile} disabled={!user || isSavingProfile}>
-              {isSavingProfile ? "保存中..." : "保存账号信息"}
+              {isSavingProfile ? t("settings.saving") : t("settings.saveAccount")}
             </Button>
 
             <div className="pt-4 border-t border-border space-y-2">
-              <div className="text-sm font-medium">修改密码</div>
+              <div className="text-sm font-medium">{t("settings.password")}</div>
               <div className="space-y-2">
-                <Label htmlFor="account-new-password">新密码</Label>
+                <Label htmlFor="account-new-password">{t("settings.newPassword")}</Label>
                 <Input
                   id="account-new-password"
                   type="password"
@@ -239,7 +241,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="account-confirm-password">确认新密码</Label>
+                <Label htmlFor="account-confirm-password">{t("settings.confirmPassword")}</Label>
                 <Input
                   id="account-confirm-password"
                   type="password"
@@ -250,7 +252,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
                 />
               </div>
               <Button className="w-full" variant="outline" onClick={updatePassword} disabled={!user || isUpdatingPassword}>
-                {isUpdatingPassword ? "更新中..." : "更新密码"}
+                {isUpdatingPassword ? t("settings.updatingPassword") : t("settings.updatePassword")}
               </Button>
             </div>
           </div>
@@ -258,7 +260,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {settings.darkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              <Label htmlFor="dark-mode">Dark Mode</Label>
+              <Label htmlFor="dark-mode">{t("settings.darkMode")}</Label>
             </div>
             <Switch
               id="dark-mode"
@@ -270,7 +272,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Volume2 className="w-4 h-4" />
-              <Label htmlFor="auto-play">Auto-play Translations</Label>
+              <Label htmlFor="auto-play">{t("settings.autoPlay")}</Label>
             </div>
             <Switch
               id="auto-play"
@@ -280,7 +282,9 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Speech Rate: {settings.speechRate.toFixed(1)}x</Label>
+            <Label>
+              {t("settings.speechRate")}: {settings.speechRate.toFixed(1)}x
+            </Label>
             <Slider
               value={[settings.speechRate]}
               onValueChange={([value]) => updateSetting("speechRate", value)}
@@ -292,7 +296,9 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Speech Volume: {Math.round(settings.speechVolume * 100)}%</Label>
+            <Label>
+              {t("settings.speechVolume")}: {Math.round(settings.speechVolume * 100)}%
+            </Label>
             <Slider
               value={[settings.speechVolume]}
               onValueChange={([value]) => updateSetting("speechVolume", value)}
@@ -304,7 +310,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
           </div>
 
           <div className="flex items-center justify-between">
-            <Label htmlFor="save-history">Save Conversation History</Label>
+            <Label htmlFor="save-history">{t("settings.saveHistory")}</Label>
             <Switch
               id="save-history"
               checked={settings.saveHistory}
@@ -315,18 +321,21 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4" />
-              <Label>Platform</Label>
+              <Label>{t("settings.platform")}</Label>
             </div>
-            <Select value={settings.platform} onValueChange={(value: any) => updateSetting("platform", value)}>
+            <Select
+              value={settings.platform}
+              onValueChange={(value) => updateSetting("platform", value as AppSettings["platform"])}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="web">Web</SelectItem>
-                <SelectItem value="wechat">WeChat Mini Program</SelectItem>
-                <SelectItem value="android">Android</SelectItem>
-                <SelectItem value="ios">iOS</SelectItem>
-                <SelectItem value="desktop">Desktop</SelectItem>
+                <SelectItem value="web">{t("settings.platform.web")}</SelectItem>
+                <SelectItem value="wechat">{t("settings.platform.wechat")}</SelectItem>
+                <SelectItem value="android">{t("settings.platform.android")}</SelectItem>
+                <SelectItem value="ios">{t("settings.platform.ios")}</SelectItem>
+                <SelectItem value="desktop">{t("settings.platform.desktop")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -334,7 +343,7 @@ export function SettingsDialog({ onSettingsChange }: SettingsDialogProps) {
           <div className="pt-4 border-t border-border">
             <Button variant="outline" className="w-full gap-2 bg-transparent" onClick={exportConversation}>
               <Download className="w-4 h-4" />
-              Export Conversation
+              {t("settings.export")}
             </Button>
           </div>
         </div>

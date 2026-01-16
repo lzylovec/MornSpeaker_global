@@ -1,4 +1,5 @@
 import { generateText } from "ai"
+import { mistral } from "@ai-sdk/mistral"
 
 export const maxDuration = 30
 
@@ -10,9 +11,9 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Use AI SDK to translate text
+    // Use Mistral for translation
     const { text: translatedText } = await generateText({
-      model: "openai/gpt-5",
+      model: mistral("mistral-large-latest"),
       prompt: `Translate the following text from ${sourceLanguage} to ${targetLanguage}. Only return the translated text, nothing else.\n\nText: ${text}`,
       maxOutputTokens: 1000,
       temperature: 0.3,

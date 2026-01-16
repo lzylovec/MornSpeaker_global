@@ -17,7 +17,7 @@ type AuthContextValue = {
   profile: Profile | null
   isLoading: boolean
   refreshProfile: () => Promise<void>
-  updateProfile: (patch: { display_name?: string; avatar_url?: string }) => Promise<void>
+  updateProfile: (patch: { display_name?: string; avatar_url?: string | null }) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -123,10 +123,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       isLoading,
       refreshProfile: async () => void refreshProfile(user),
-      updateProfile: async (patch: { display_name?: string; avatar_url?: string }) => {
+      updateProfile: async (patch: { display_name?: string; avatar_url?: string | null }) => {
         if (!user) return
         const supabase = getSupabaseBrowserClient()
-        await supabase.from("profiles").update(patch).eq("id", user.id)
+        const { error } = await supabase.from("profiles").update(patch).eq("id", user.id)
+        if (error) throw error
         await refreshProfile(user)
       },
       signOut: async () => {

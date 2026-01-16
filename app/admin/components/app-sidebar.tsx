@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   MessageSquare,
+  Megaphone,
   Users,
 } from "lucide-react"
 
@@ -33,6 +34,11 @@ const items = [
     url: "/admin/rooms",
     icon: MessageSquare,
   },
+  {
+    title: "广告管理",
+    url: "/admin/ads",
+    icon: Megaphone,
+  },
 ]
 
 export function AppSidebar() {
@@ -40,7 +46,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>AI-Translate 后台管理</SidebarGroupLabel>
+          <SidebarGroupLabel>MornSpeaker 后台管理</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (

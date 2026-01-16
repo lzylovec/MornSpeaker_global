@@ -11,6 +11,7 @@ import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { RoomActions } from "./room-actions"
 import { CreateRoomDialog } from "./create-room-dialog"
+import { RoomAutoDeleteToggle } from "./room-auto-delete-toggle"
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export default async function RoomsPage() {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   let rooms: RoomRow[] = [];
+  let autoDeleteEnabled = false
 
   try {
     if (supabaseUrl && supabaseKey) {
@@ -31,6 +33,21 @@ export default async function RoomsPage() {
       // 否则使用 Anon Key (受 RLS 限制)
       const key = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
       const supabase = createClient(supabaseUrl, key);
+
+      const { data: settingRow } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "rooms_auto_delete_after_24h")
+        .maybeSingle()
+      const settingValue = (settingRow as { value?: unknown } | null)?.value
+      autoDeleteEnabled =
+        typeof settingValue === "boolean"
+          ? settingValue
+          : typeof settingValue === "object" &&
+              settingValue !== null &&
+              typeof (settingValue as { enabled?: unknown }).enabled === "boolean"
+            ? Boolean((settingValue as { enabled: boolean }).enabled)
+            : false
 
       const { data, error } = await supabase
         .from('rooms')
@@ -53,6 +70,7 @@ export default async function RoomsPage() {
         <h2 className="text-3xl font-bold tracking-tight">房间管理</h2>
         <CreateRoomDialog />
       </div>
+      <RoomAutoDeleteToggle initialEnabled={autoDeleteEnabled} />
       <div className="border rounded-md bg-white">
         <Table>
           <TableHeader>

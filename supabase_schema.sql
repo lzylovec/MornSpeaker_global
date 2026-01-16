@@ -25,12 +25,23 @@ CREATE TABLE IF NOT EXISTS room_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Create indexes for performance
+-- 4. Create app_settings table
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO app_settings (key, value)
+VALUES ('rooms_auto_delete_after_24h', 'false'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+-- 5. Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_room_users_room_id ON room_users(room_id);
 CREATE INDEX IF NOT EXISTS idx_room_messages_room_id ON room_messages(room_id);
 CREATE INDEX IF NOT EXISTS idx_room_messages_created_at ON room_messages(created_at);
 
--- 5. Create profiles table (auth.users + profiles)
+-- 6. Create profiles table (auth.users + profiles)
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
@@ -91,7 +102,7 @@ CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- 5. (Optional) Set up Realtime
+-- 6. (Optional) Set up Realtime
 -- To enable realtime for these tables, you need to add them to the publication
 -- This is usually done via the Dashboard: Database -> Replication -> supabase_realtime
 -- Or via SQL:

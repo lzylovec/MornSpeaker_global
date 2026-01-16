@@ -4,6 +4,7 @@ type MemoryRoomData = {
   id: string
   users: Map<string, User>
   messages: Message[]
+  createdAt: string
 }
 
 // Global storage to survive hot reloads in development
@@ -20,6 +21,7 @@ export class MemoryRoomStore implements RoomStore {
         id: roomId,
         users: new Map(),
         messages: [],
+        createdAt: new Date().toISOString(),
       })
     }
 
@@ -30,6 +32,7 @@ export class MemoryRoomStore implements RoomStore {
       id: room.id,
       users: Array.from(room.users.values()),
       messages: room.messages,
+      createdAt: room.createdAt,
     }
   }
 
@@ -60,6 +63,7 @@ export class MemoryRoomStore implements RoomStore {
       id: room.id,
       users: Array.from(room.users.values()),
       messages: room.messages,
+      createdAt: room.createdAt,
     }
   }
 }
