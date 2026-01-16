@@ -73,6 +73,9 @@ async function parseErrorMessage(response: Response): Promise<string> {
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -93,9 +96,12 @@ export async function transcribeAudio(audioBlob: Blob, language: string): Promis
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   if (!response.ok) {
     throw new Error("Failed to transcribe audio")
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -115,6 +121,9 @@ export async function transcribeAudio(audioBlob: Blob, language: string): Promis
     throw new Error(message || "转写失败")
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -125,6 +134,7 @@ export async function transcribeAudio(audioBlob: Blob, language: string): Promis
   throw new Error("转写失败")
 }
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -165,6 +175,29 @@ export async function translateText(
       signal,
     })
 
+=======
+export async function translateText(
+  text: string,
+  sourceLanguage: string,
+  targetLanguage: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const maxAttempts = 3
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await fetch("/api/translate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        sourceLanguage,
+        targetLanguage,
+      }),
+      signal,
+    })
+
+>>>>>>> Stashed changes
 =======
 export async function translateText(
   text: string,
