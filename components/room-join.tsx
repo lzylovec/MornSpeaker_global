@@ -67,9 +67,12 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     const randomName = `User${Math.floor(Math.random() * 1000)}`
     onJoin(randomRoom, randomName)
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -87,6 +90,9 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -154,6 +160,15 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
 
           <Button variant="outline" onClick={handleQuickJoin} className="w-full bg-transparent">
             Quick Join (Random Room)
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={() => signOut()}
+            className="w-full text-muted-foreground hover:text-destructive"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            退出登录
           </Button>
 
           <Button

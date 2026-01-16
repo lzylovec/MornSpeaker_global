@@ -28,7 +28,10 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -75,7 +78,11 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   }, [messages])
+=======
+  }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
+>>>>>>> Stashed changes
 =======
   }, [lastMessageId, lastMessageIsUser, liveCaption?.originalText, liveCaption?.translatedText])
 >>>>>>> Stashed changes
