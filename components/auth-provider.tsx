@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react"
-import type { Session, User } from "@supabase/supabase-js"
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { createContext, useContext, useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { type Session, type User } from '@supabase/supabase-js'
 
 export type Profile = {
   id: string
@@ -21,130 +21,105 @@ type AuthContextValue = {
   signOut: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null)
+const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const supabase = createClient()
 
-  const refreshProfile = useCallback(async (currentUser: User | null) => {
-    if (!currentUser) {
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) throw error
+      setProfile(data)
+    } catch (error) {
+      console.error('Error fetching profile:', error)
       setProfile(null)
-      return
     }
+  }
 
-    const supabase = getSupabaseBrowserClient()
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id,email,display_name,avatar_url")
-      .eq("id", currentUser.id)
-      .maybeSingle()
-
-    if (error) {
-      console.error("Error fetching profile:", error)
-      setProfile(null)
-      return
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id)
     }
+  }
 
-    if (data) {
-      setProfile(data as Profile)
-      return
+  const updateProfile = async (patch: { display_name?: string; avatar_url?: string | null }) => {
+    if (!user) return
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(patch)
+        .eq('id', user.id)
+
+      if (error) throw error
+      await refreshProfile()
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      throw error
     }
+  }
 
-    // Fallback: create profile if not exists
-    const fallbackDisplayName =
-      (typeof currentUser.user_metadata?.full_name === "string" && currentUser.user_metadata.full_name.trim()) ||
-      (typeof currentUser.user_metadata?.name === "string" && currentUser.user_metadata.name.trim()) ||
-      (typeof currentUser.email === "string" && currentUser.email.trim()) ||
-      ""
-
-    const fallbackAvatarUrl =
-      (typeof currentUser.user_metadata?.avatar_url === "string" && currentUser.user_metadata.avatar_url.trim()) ||
-      (typeof currentUser.user_metadata?.picture === "string" && currentUser.user_metadata.picture.trim()) ||
-      null
-
-    const { data: created } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: currentUser.id,
-          email: currentUser.email ?? null,
-          display_name: fallbackDisplayName || null,
-          avatar_url: fallbackAvatarUrl,
-        },
-        { onConflict: "id" },
-      )
-      .select("id,email,display_name,avatar_url")
-      .maybeSingle()
-
-    setProfile((created as Profile) ?? null)
-  }, [])
+  const signOut = async () => {
+    await supabase.auth.signOut()
+  }
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient()
-    let isMounted = true
-
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (!isMounted) return
-        setSession(data.session ?? null)
-        setUser(data.session?.user ?? null)
-        void refreshProfile(data.session?.user ?? null)
-      })
-      .finally(() => {
-        if (!isMounted) return
-        setIsLoading(false)
-      })
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!isMounted) return
-      setSession(nextSession)
-      setUser(nextSession?.user ?? null)
-      
-      // Only refresh profile if user changed
-      if (nextSession?.user?.id !== user?.id) {
-         void refreshProfile(nextSession?.user ?? null)
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        fetchProfile(session.user.id)
       }
+      setIsLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+      }
+      setIsLoading(false)
     })
 
     return () => {
-      isMounted = false
-      sub.subscription.unsubscribe()
+      subscription.unsubscribe()
     }
-  }, [refreshProfile, user?.id])
+  }, [])
 
-  const value = useMemo(
-    () => ({
+  return (
+    <AuthContext.Provider value={{
       session,
-      user,
+      user, 
       profile,
       isLoading,
-      refreshProfile: async () => void refreshProfile(user),
-      updateProfile: async (patch: { display_name?: string; avatar_url?: string | null }) => {
-        if (!user) return
-        const supabase = getSupabaseBrowserClient()
-        const { error } = await supabase.from("profiles").update(patch).eq("id", user.id)
-        if (error) throw error
-        await refreshProfile(user)
-      },
-      signOut: async () => {
-        const supabase = getSupabaseBrowserClient()
-        await supabase.auth.signOut()
-      },
-    }),
-    [session, user, profile, isLoading, refreshProfile],
+      refreshProfile,
+      updateProfile,
+      signOut
+    }}>
+      {children}
+    </AuthContext.Provider>
   )
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider")
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
 }
