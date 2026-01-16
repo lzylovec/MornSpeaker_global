@@ -20,7 +20,7 @@ export const UI_LOCALES: UiLocaleOption[] = [
 
 type MessageValue = string | ((params: Record<string, unknown>) => string)
 
-const messages: Record<UiLocale, Record<string, MessageValue>> = {
+const messages: Partial<Record<UiLocale, Record<string, MessageValue>>> = {
   zh: {
     "app.name": "MornSpeaker",
     "common.settings": "设置",
@@ -377,8 +377,10 @@ const messages: Record<UiLocale, Record<string, MessageValue>> = {
   },
 }
 
+const FALLBACK_LOCALE: UiLocale = "en"
+
 function defaultLocale(): UiLocale {
-  return "en"
+  return FALLBACK_LOCALE
 }
 
 export function normalizeLocale(value: unknown): UiLocale {
@@ -400,7 +402,8 @@ export function normalizeLocale(value: unknown): UiLocale {
 }
 
 export function getMessage(locale: UiLocale, key: string): MessageValue | undefined {
-  return messages[locale]?.[key] ?? messages[defaultLocale()]?.[key]
+  const fallbackMessages = messages[FALLBACK_LOCALE]
+  return messages[locale]?.[key] ?? fallbackMessages?.[key]
 }
 
 export function translate(locale: UiLocale, key: string, params: Record<string, unknown> = {}): string {

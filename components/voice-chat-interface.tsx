@@ -367,50 +367,66 @@ export function VoiceChatInterface() {
         userCount={users.length}
       />
 
-      <div className="flex-1 flex max-w-screen-2xl w-full mx-auto px-4 py-6 gap-6 overflow-hidden min-h-0">
+      <div className="flex-1 flex max-w-screen-2xl w-full mx-auto px-4 py-4 gap-4 overflow-hidden min-h-0">
         <div className="hidden lg:flex w-64 flex-shrink-0 flex-col gap-4">
           <UserList users={users} currentUserId={roomUserId} />
           <AdSlot slotKey="room_sidebar" variant="sidebar" limit={2} fetchLimit={6} rotateMs={7000} />
         </div>
 
-        <div className="flex-1 flex flex-col gap-6 min-w-0 min-h-0">
-          <div className="flex items-center justify-between gap-4 p-4 bg-card rounded-lg border border-border">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground">{t("common.roomId")}</p>
-              <p className="font-mono font-medium truncate">{roomId}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopyRoomId} className="gap-2 bg-transparent">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span className="hidden sm:inline">{copied ? t("common.copied") : t("common.copy")}</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleLeaveRoom} className="gap-2 bg-transparent">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">{t("common.leave")}</span>
-              </Button>
-            </div>
-          </div>
-
+        <div className="flex-1 flex flex-col gap-3 min-w-0 min-h-0">
           <div className="lg:hidden">
             <AdSlot slotKey="room_inline" variant="inline" limit={1} />
           </div>
 
-          <LanguageSelector
-            userLanguage={userLanguage}
-            targetLanguage={targetLanguage}
-            onUserLanguageChange={setUserLanguage}
-            onTargetLanguageChange={setTargetLanguage}
-            onSwap={handleLanguageSwap}
-          />
+          <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-hidden flex flex-col">
+            <div className="shrink-0 px-3 py-2 border-b border-border flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-xs text-muted-foreground">{t("common.roomId")}</div>
+                <div className="font-mono text-sm font-medium truncate">{roomId}</div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCopyRoomId}
+                className="h-9 w-9 shrink-0"
+                aria-label={copied ? t("common.copied") : t("common.copy")}
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLeaveRoom}
+                className="h-9 w-9 shrink-0"
+                aria-label={t("common.leave")}
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
 
-          <ChatArea
-            messages={messages}
-            speechRate={settings.speechRate}
-            speechVolume={settings.speechVolume}
-            autoPlay={settings.autoPlayTranslations}
-          />
+            <div className="shrink-0 px-3 py-2 border-b border-border">
+              <LanguageSelector
+                variant="compact"
+                userLanguage={userLanguage}
+                targetLanguage={targetLanguage}
+                onUserLanguageChange={setUserLanguage}
+                onTargetLanguageChange={setTargetLanguage}
+                onSwap={handleLanguageSwap}
+              />
+            </div>
 
-          <VoiceControls isProcessing={isProcessing} onRecordingComplete={handleRecordingComplete} />
+            <ChatArea
+              variant="embedded"
+              messages={messages}
+              speechRate={settings.speechRate}
+              speechVolume={settings.speechVolume}
+              autoPlay={settings.autoPlayTranslations}
+            />
+
+            <div className="shrink-0 px-3 py-2 border-t border-border bg-background/50">
+              <VoiceControls variant="inline" isProcessing={isProcessing} onRecordingComplete={handleRecordingComplete} />
+            </div>
+          </div>
         </div>
       </div>
     </div>

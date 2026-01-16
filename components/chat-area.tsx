@@ -2,7 +2,7 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { SUPPORTED_LANGUAGES, type Message } from "@/components/voice-chat-interface"
-import { Volume2, VolumeX } from "lucide-react"
+import { ArrowUp, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
@@ -15,12 +15,20 @@ type ChatAreaProps = {
   speechRate?: number
   speechVolume?: number
   autoPlay?: boolean
+  variant?: "panel" | "embedded"
 }
 
-export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoPlay = false }: ChatAreaProps) {
+export function ChatArea({
+  messages,
+  speechRate = 0.9,
+  speechVolume = 1.0,
+  autoPlay = false,
+  variant = "panel",
+}: ChatAreaProps) {
   const { speak, stop, isSpeaking } = useTextToSpeech({ rate: speechRate, volume: speechVolume })
   const { locale, t } = useI18n()
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
+  const [showScrollToTop, setShowScrollToTop] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastMessageIdRef = useRef<string | null>(null)
@@ -28,6 +36,7 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
   const lastMessage = messages[messages.length - 1]
   const lastMessageId = lastMessage?.id
   const lastMessageIsUser = lastMessage?.isUser === true
+  const isEmbedded = variant === "embedded"
 
   const getLanguageLabel = (value: string): string => {
     const byCode = SUPPORTED_LANGUAGES.find((l) => l.code === value)
@@ -54,12 +63,22 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
     const update = () => {
       const distanceToBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
       shouldAutoScrollRef.current = distanceToBottom < 24
+      const nextShow = viewport.scrollTop > 200
+      setShowScrollToTop((prev) => (prev === nextShow ? prev : nextShow))
     }
 
     update()
     viewport.addEventListener("scroll", update, { passive: true })
     return () => viewport.removeEventListener("scroll", update)
   }, [])
+
+  const handleScrollToTop = () => {
+    const root = scrollAreaRef.current
+    if (!root) return
+    const viewport = root.querySelector<HTMLDivElement>('[data-slot="scroll-area-viewport"]')
+    if (!viewport) return
+    viewport.scrollTo({ top: 0, behavior: "smooth" })
+  }
 
   useEffect(() => {
     if (!shouldAutoScrollRef.current && !lastMessageIsUser) return
@@ -115,23 +134,42 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-card rounded-xl border border-border">
+      <div
+        className={
+          isEmbedded
+            ? "flex-1 flex items-center justify-center px-4 py-8"
+            : "flex-1 flex items-center justify-center bg-card rounded-xl border border-border"
+        }
+      >
         <div className="text-center max-w-md px-4">
-          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <Volume2 className="w-10 h-10 text-primary" />
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <Volume2 className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-semibold text-foreground mb-2">{t("chat.empty.title")}</h2>
-          <p className="text-muted-foreground leading-relaxed">
-            {t("chat.empty.desc")}
-          </p>
+          <h2 className="text-xl font-semibold text-foreground mb-2">{t("chat.empty.title")}</h2>
+          <p className="text-muted-foreground leading-relaxed">{t("chat.empty.desc")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <ScrollArea className="flex-1 min-h-0 bg-card rounded-xl border border-border p-4" ref={scrollAreaRef}>
-      <div className="space-y-4">
+    <ScrollArea
+      className={isEmbedded ? "flex-1 min-h-0 px-3 py-2" : "flex-1 min-h-0 bg-card rounded-xl border border-border p-4"}
+      ref={scrollAreaRef}
+    >
+      {showScrollToTop && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="absolute top-2 right-2 z-10 h-9 w-9 shadow-sm"
+          onClick={handleScrollToTop}
+          aria-label={t("common.backToTop")}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
+      <div className={isEmbedded ? "space-y-3" : "space-y-4"}>
         {messages.map((message) => (
           <div
             key={message.id}
@@ -145,8 +183,9 @@ export function ChatArea({ messages, speechRate = 0.9, speechVolume = 1.0, autoP
             )}
 
             <div
-              className={`max-w-[88%] md:max-w-[85%] lg:max-w-[82%] rounded-xl p-4 ${message.isUser ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-                }`}
+              className={`max-w-[88%] md:max-w-[85%] lg:max-w-[82%] rounded-xl ${
+                isEmbedded ? "p-3" : "p-4"
+              } ${message.isUser ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}
             >
               {!message.isUser && <p className="text-xs font-semibold mb-2 opacity-70">{message.userName}</p>}
 

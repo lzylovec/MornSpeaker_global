@@ -10,13 +10,15 @@ import { useI18n } from "@/components/i18n-provider"
 type VoiceControlsProps = {
   isProcessing: boolean
   onRecordingComplete: (audioBlob: Blob) => void
+  variant?: "stacked" | "inline"
 }
 
-export function VoiceControls({ isProcessing, onRecordingComplete }: VoiceControlsProps) {
+export function VoiceControls({ isProcessing, onRecordingComplete, variant = "stacked" }: VoiceControlsProps) {
   const { isRecording, recordingTime, audioBlob, startRecording, stopRecording } = useAudioRecorder()
   const { t } = useI18n()
   const isPressingRef = useRef(false)
   const shouldStopAfterStartRef = useRef(false)
+  const isInline = variant === "inline"
 
   useEffect(() => {
     if (audioBlob && !isRecording) {
@@ -97,27 +99,39 @@ export function VoiceControls({ isProcessing, onRecordingComplete }: VoiceContro
   }, [])
 
   return (
-    <div className="flex flex-col items-center gap-4 pb-6">
-      {isProcessing && (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Spinner className="w-4 h-4" />
-          <span className="text-sm">{t("voice.processing")}</span>
-        </div>
-      )}
-
-      {isRecording && !isProcessing && (
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2 text-destructive">
-            <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
-            <span className="text-sm font-medium">{t("voice.recording")}</span>
+    <div className={isInline ? "flex items-center gap-3" : "flex flex-col items-center gap-4 pb-6"}>
+      <div className={isInline ? "flex-1 min-w-0" : ""}>
+        {isProcessing && (
+          <div className={isInline ? "flex items-center gap-2 text-muted-foreground" : "flex items-center gap-2 text-muted-foreground"}>
+            <Spinner className="w-4 h-4" />
+            <span className={isInline ? "text-sm" : "text-sm"}>{t("voice.processing")}</span>
           </div>
-          <span className="text-lg font-mono text-foreground">{formatTime(recordingTime)}</span>
-        </div>
-      )}
+        )}
+
+        {!isProcessing && isRecording && (
+          <div className={isInline ? "flex items-center justify-between gap-3" : "flex flex-col items-center gap-2"}>
+            <div className={isInline ? "flex items-center gap-2 text-destructive" : "flex items-center gap-2 text-destructive"}>
+              <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
+              <span className="text-sm font-medium">{t("voice.recording")}</span>
+            </div>
+            <span className={isInline ? "text-base font-mono text-foreground" : "text-lg font-mono text-foreground"}>
+              {formatTime(recordingTime)}
+            </span>
+          </div>
+        )}
+
+        {!isProcessing && !isRecording && (
+          <p className={isInline ? "text-xs text-muted-foreground leading-relaxed" : "text-sm text-muted-foreground text-center max-w-xs"}>
+            {t("voice.hintHold")}
+          </p>
+        )}
+      </div>
 
       <Button
-        size="lg"
-        className={`w-20 h-20 rounded-full transition-all ${
+        size={isInline ? "default" : "lg"}
+        className={`rounded-full transition-all ${
+          isInline ? "w-14 h-14" : "w-20 h-20"
+        } ${
           isRecording
             ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground scale-110"
             : "bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -128,12 +142,18 @@ export function VoiceControls({ isProcessing, onRecordingComplete }: VoiceContro
         onContextMenu={handleContextMenu}
         disabled={isProcessing}
       >
-        {isRecording ? <Square className="w-8 h-8" fill="currentColor" /> : <Mic className="w-8 h-8" />}
+        {isRecording ? (
+          <Square className={isInline ? "w-6 h-6" : "w-8 h-8"} fill="currentColor" />
+        ) : (
+          <Mic className={isInline ? "w-6 h-6" : "w-8 h-8"} />
+        )}
       </Button>
 
-      <p className="text-sm text-muted-foreground text-center max-w-xs">
-        {isRecording ? t("voice.hintRelease") : t("voice.hintHold")}
-      </p>
+      {!isInline && (
+        <p className="text-sm text-muted-foreground text-center max-w-xs">
+          {isRecording ? t("voice.hintRelease") : t("voice.hintHold")}
+        </p>
+      )}
     </div>
   )
 }
