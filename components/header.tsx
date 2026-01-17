@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 import { useI18n } from "@/components/i18n-provider"
 import { UI_LOCALES, type UiLocale } from "@/lib/i18n"
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useState } from "react"
 
 type HeaderProps = {
@@ -139,6 +139,9 @@ export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId
               <SheetContent side="right">
                 <SheetHeader>
                   <SheetTitle>{t("app.name")}</SheetTitle>
+                  <SheetDescription className="sr-only">
+                    移动端导航菜单，包含语言切换和用户操作
+                  </SheetDescription>
                 </SheetHeader>
                 <div className="flex flex-col gap-4 mt-6">
                   <div className="space-y-2">

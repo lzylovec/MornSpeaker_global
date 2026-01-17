@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { LogOut, Copy, Check, Settings, Users } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useI18n } from "@/components/i18n-provider"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -833,14 +833,20 @@ export function VoiceChatInterface() {
                       <Users className="w-4 h-4" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-[85%] sm:w-[380px] p-0 pt-10">
-                    <UserList
-                      users={users}
-                      currentUserId={roomUserId}
-                      adminUserId={roomSettings?.adminUserId ?? null}
-                      canKick={isAdmin}
-                      onKick={handleKickUser}
-                    />
+                  <SheetContent side="left" className="w-[85%] sm:w-[380px] p-0">
+                    <SheetHeader className="sr-only">
+                      <SheetTitle>{t("users.title", { count: users.length })}</SheetTitle>
+                      <SheetDescription>显示当前房间内的在线用户列表</SheetDescription>
+                    </SheetHeader>
+                    <div className="pt-10 h-full">
+                      <UserList
+                        users={users}
+                        currentUserId={roomUserId}
+                        adminUserId={roomSettings?.adminUserId ?? null}
+                        canKick={isAdmin}
+                        onKick={handleKickUser}
+                      />
+                    </div>
                   </SheetContent>
                 </Sheet>
               </div>
