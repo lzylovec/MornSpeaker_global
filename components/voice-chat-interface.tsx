@@ -802,9 +802,10 @@ export function VoiceChatInterface() {
         onSettingsChange={setSettings}
         roomId={isInRoom ? roomId : undefined}
         userCount={users.length}
+        onShowUsers={() => setIsUsersSheetOpen(true)}
       />
 
-      <div className="flex-1 flex max-w-screen-2xl w-full mx-auto px-4 py-4 gap-4 overflow-hidden min-h-0">
+      <div className="flex-1 flex max-w-screen-2xl w-full mx-auto p-2 lg:p-4 gap-2 lg:gap-4 overflow-hidden min-h-0">
         <div className="hidden lg:flex w-64 flex-shrink-0 flex-col gap-4">
           <div className="min-h-0 flex-1">
             <UserList
@@ -818,13 +819,13 @@ export function VoiceChatInterface() {
           <AdSlot slotKey="room_sidebar" variant="sidebar" limit={2} fetchLimit={6} rotateMs={7000} />
         </div>
 
-        <div className="flex-1 flex flex-col gap-3 min-w-0 min-h-0">
+        <div className="flex-1 flex flex-col gap-2 lg:gap-3 min-w-0 min-h-0">
           <div className="lg:hidden">
             <AdSlot slotKey="room_inline" variant="inline" limit={1} />
           </div>
 
-          <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-hidden flex flex-col">
-            <div className="shrink-0 px-3 py-2 border-b border-border flex items-center gap-2">
+          <div className="flex-1 min-h-0 bg-card rounded-lg lg:rounded-xl border border-border overflow-hidden flex flex-col">
+            <div className="shrink-0 px-2 lg:px-3 py-2 border-b border-border flex items-center gap-2">
               <div className="lg:hidden">
                 <Sheet open={isUsersSheetOpen} onOpenChange={setIsUsersSheetOpen}>
                   <SheetTrigger asChild>
@@ -844,8 +845,11 @@ export function VoiceChatInterface() {
                 </Sheet>
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs text-muted-foreground">{t("common.roomId")}</div>
-                <div className="font-mono text-sm font-medium truncate">{roomId}</div>
+                <div className="text-xs text-muted-foreground hidden sm:block">{t("common.roomId")}</div>
+                <div className="font-mono text-sm font-medium truncate flex items-center gap-2">
+                  <span className="sm:hidden text-xs text-muted-foreground">ID:</span>
+                  {roomId}
+                </div>
               </div>
               <Button
                 variant="ghost"
@@ -878,7 +882,7 @@ export function VoiceChatInterface() {
               </Button>
             </div>
 
-            <div className="shrink-0 px-3 py-2 border-b border-border">
+            <div className="shrink-0 px-2 lg:px-3 py-2 border-b border-border">
               <LanguageSelector
                 variant="compact"
                 language={userLanguage}
@@ -894,7 +898,7 @@ export function VoiceChatInterface() {
               autoPlay={settings.autoPlayTranslations}
             />
 
-            <div className="shrink-0 px-3 py-2 border-t border-border bg-background/50">
+            <div className="shrink-0 px-2 lg:px-3 py-2 border-t border-border bg-background/50">
               {(isRecording || isProcessing) && (liveTranscript.trim() || !liveSpeechSupported) ? (
                 <div className="mb-2 rounded-lg border bg-background/70 px-3 py-2">
                   {!liveSpeechSupported ? (

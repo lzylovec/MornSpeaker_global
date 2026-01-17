@@ -18,9 +18,10 @@ type HeaderProps = {
   onSettingsChange?: (settings: AppSettings) => void
   roomId?: string
   userCount?: number
+  onShowUsers?: () => void
 }
 
-export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId, userCount }: HeaderProps) {
+export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId, userCount, onShowUsers }: HeaderProps) {
   const { profile, user, isLoading, signOut } = useAuth()
   const router = useRouter()
   const { locale, setLocale, t } = useI18n()
@@ -51,9 +52,22 @@ export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId
             <p className="text-sm text-muted-foreground">
               {roomId ? (
                 <span className="flex items-center gap-2">
-                  <Users className="w-3 h-3" />
-                  {t("header.online", { count: userCount ?? 0 })}
-                  {messageCount > 0 && ` • ${t("header.messages", { count: messageCount })}`}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-auto p-0 hover:bg-transparent text-muted-foreground hover:text-foreground font-normal"
+                    onClick={onShowUsers}
+                  >
+                    <Users className="w-3 h-3 mr-1" />
+                    <span className="lg:hidden">{userCount ?? 0}</span>
+                    <span className="hidden lg:inline">{t("header.online", { count: userCount ?? 0 })}</span>
+                  </Button>
+                  {messageCount > 0 && (
+                    <>
+                      <span className="lg:hidden"> • {messageCount}</span>
+                      <span className="hidden lg:inline"> • {t("header.messages", { count: messageCount })}</span>
+                    </>
+                  )}
                 </span>
               ) : messageCount > 0 ? (
                 t("header.messages", { count: messageCount })
@@ -66,7 +80,7 @@ export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId
 
         <div className="flex items-center gap-2">
           {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2">
             <Select value={locale} onValueChange={(value) => void persistLocale(value as UiLocale)}>
               <SelectTrigger className="w-[110px]">
                 <SelectValue>
@@ -89,7 +103,7 @@ export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId
             </Select>
             {!isLoading && user && (
               <>
-                <div className="hidden lg:block text-xs text-muted-foreground max-w-[220px] truncate">
+                <div className="hidden xl:block text-xs text-muted-foreground max-w-[220px] truncate">
                   {profile?.display_name || user.email}
                 </div>
                 <Button
@@ -107,14 +121,14 @@ export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId
             {messageCount > 0 && onClearChat && (
               <Button variant="ghost" size="sm" onClick={onClearChat} className="gap-2">
                 <Trash2 className="w-4 h-4" />
-                <span className="hidden lg:inline">{t("common.clearChat")}</span>
+                <span className="hidden xl:inline">{t("common.clearChat")}</span>
               </Button>
             )}
             <SettingsDialog onSettingsChange={onSettingsChange} />
           </div>
 
           {/* Mobile Actions */}
-          <div className="md:hidden flex items-center gap-2">
+          <div className="lg:hidden flex items-center gap-2">
             <SettingsDialog onSettingsChange={onSettingsChange} />
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
