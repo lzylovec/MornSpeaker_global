@@ -15,9 +15,14 @@ import { useI18n } from "@/components/i18n-provider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { UI_LOCALES, type UiLocale } from "@/lib/i18n"
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 type RoomJoinProps = {
-  onJoin: (roomId: string, userName: string) => void
+  onJoin: (
+    roomId: string,
+    userName: string,
+    options?: { joinPassword?: string; createJoinMode?: "public" | "password"; createPassword?: string },
+  ) => Promise<{ success: boolean; needsPassword?: boolean }>
 }
 
 export function RoomJoin({ onJoin }: RoomJoinProps) {
@@ -26,6 +31,10 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
   const { locale, setLocale, t } = useI18n()
   const [roomId, setRoomId] = useState("")
   const [userName, setUserName] = useState("")
+  const [needsJoinPassword, setNeedsJoinPassword] = useState(false)
+  const [joinPassword, setJoinPassword] = useState("")
+  const [createJoinMode, setCreateJoinMode] = useState<"public" | "password">("public")
+  const [createPassword, setCreatePassword] = useState("")
   const hasEditedUserNameRef = useRef(false)
   const [isSavingLocale, setIsSavingLocale] = useState(false)
   const currentLocale = UI_LOCALES.find((l) => l.value === locale) ?? UI_LOCALES[0]
@@ -62,7 +71,12 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
     }
   }, [profile?.display_name, user?.email, user?.id, user?.user_metadata, userName])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    setNeedsJoinPassword(false)
+    setJoinPassword("")
+  }, [roomId])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (roomId.trim() && userName.trim()) {
       const nextName = userName.trim()
@@ -84,7 +98,15 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
           })
         })
       }
-      onJoin(roomId.trim(), nextName)
+      const rid = roomId.trim()
+      const res = await onJoin(rid, nextName, {
+        joinPassword: needsJoinPassword ? joinPassword.trim() || undefined : undefined,
+        createJoinMode,
+        createPassword: createJoinMode === "password" ? createPassword.trim() : undefined,
+      })
+      if (!res.success && res.needsPassword) {
+        setNeedsJoinPassword(true)
+      }
     }
   }
 
@@ -101,9 +123,9 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
       window.localStorage.setItem(legacyKey, nextName)
     }
     if (user && nextName && nextName !== (profile?.display_name ?? "")) {
-      void updateProfile({ display_name: nextName }).catch(() => {})
+      void updateProfile({ display_name: nextName }).catch(() => { })
     }
-    onJoin(randomRoom, nextName)
+    void onJoin(randomRoom, nextName, { createJoinMode: "public" })
   }
 
   const handleLocaleChange = async (value: string) => {
@@ -189,6 +211,63 @@ export function RoomJoin({ onJoin }: RoomJoinProps) {
                 required
               />
               <p className="text-xs text-muted-foreground">{t("roomJoin.roomIdHelp")}</p>
+            </div>
+
+            {needsJoinPassword ? (
+              <div className="space-y-2">
+                <Label htmlFor="joinPassword">{t("roomJoin.passwordLabel")}</Label>
+                <Input
+                  id="joinPassword"
+                  type="password"
+                  placeholder={t("roomJoin.passwordPlaceholder")}
+                  value={joinPassword}
+                  onChange={(e) => setJoinPassword(e.target.value)}
+                  required
+                />
+              </div>
+            ) : null}
+
+            <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+              <div>
+                <div className="text-sm font-medium">{t("roomJoin.createSettingsTitle")}</div>
+                <div className="text-xs text-muted-foreground">{t("roomJoin.createSettingsHint")}</div>
+              </div>
+              <RadioGroup
+                value={createJoinMode}
+                onValueChange={(v) => {
+                  const next = v as "public" | "password"
+                  setCreateJoinMode(next)
+                  if (next === "public") setCreatePassword("")
+                }}
+                className="grid gap-2"
+              >
+                <label className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 cursor-pointer">
+                  <RadioGroupItem value="public" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{t("roomJoin.joinModePublic")}</div>
+                    <div className="text-xs text-muted-foreground">{t("roomJoin.joinModePublicDesc")}</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 cursor-pointer">
+                  <RadioGroupItem value="password" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{t("roomJoin.joinModePassword")}</div>
+                    <div className="text-xs text-muted-foreground">{t("roomJoin.joinModePasswordDesc")}</div>
+                  </div>
+                </label>
+              </RadioGroup>
+              {createJoinMode === "password" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="createPassword">{t("roomJoin.createPasswordLabel")}</Label>
+                  <Input
+                    id="createPassword"
+                    type="password"
+                    placeholder={t("roomJoin.createPasswordPlaceholder")}
+                    value={createPassword}
+                    onChange={(e) => setCreatePassword(e.target.value)}
+                  />
+                </div>
+              ) : null}
             </div>
 
             <Button type="submit" className="w-full gap-2" size="lg">

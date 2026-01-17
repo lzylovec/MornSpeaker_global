@@ -12,9 +12,13 @@ import { transcribeAudio, translateText } from "@/lib/audio-utils"
 import { useToast } from "@/hooks/use-toast"
 import type { AppSettings } from "@/components/settings-dialog"
 import { Button } from "@/components/ui/button"
-import { LogOut, Copy, Check } from "lucide-react"
+import { LogOut, Copy, Check, Settings } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useI18n } from "@/components/i18n-provider"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 export type Language = {
   code: string
@@ -47,6 +51,8 @@ export type Message = {
   userAvatar?: string
 }
 
+type RoomSettings = { adminUserId: string; joinMode: "public" | "password" } | null
+
 export function VoiceChatInterface() {
   const { profile, user } = useAuth()
   const { t } = useI18n()
@@ -58,6 +64,7 @@ export function VoiceChatInterface() {
   const clientInstanceIdRef = useRef("")
   const [userName, setUserName] = useState("")
   const [users, setUsers] = useState<User[]>([])
+  const [roomSettings, setRoomSettings] = useState<RoomSettings>(null)
   const [copied, setCopied] = useState(false)
 
   const [messages, setMessages] = useState<Message[]>([])
@@ -75,6 +82,11 @@ export function VoiceChatInterface() {
   const { toast } = useToast()
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const translationCacheRef = useRef<Map<string, string>>(new Map())
+  const leaveInitiatedRef = useRef(false)
+  const [roomSettingsOpen, setRoomSettingsOpen] = useState(false)
+  const [roomSettingsJoinMode, setRoomSettingsJoinMode] = useState<"public" | "password">("public")
+  const [roomSettingsPassword, setRoomSettingsPassword] = useState("")
+  const [roomSettingsSaving, setRoomSettingsSaving] = useState(false)
 
   const ensureClientInstanceId = useCallback(() => {
     if (clientInstanceIdRef.current) return clientInstanceIdRef.current
@@ -108,6 +120,8 @@ export function VoiceChatInterface() {
       setUsers([])
       setRoomUserId("")
       setJoinedAuthUserId(null)
+      setRoomSettings(null)
+      leaveInitiatedRef.current = false
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
         pollIntervalRef.current = null
@@ -136,12 +150,28 @@ export function VoiceChatInterface() {
         }
 
         const data = (await response.json().catch(() => null)) as
-          | { success?: boolean; room?: { users: User[]; messages: Array<{ id: string; userId: string; userName: string; originalText: string; originalLanguage: string; timestamp: string; audioUrl?: string }> } }
+          | {
+            success?: boolean
+            room?: {
+              users: User[]
+              messages: Array<{ id: string; userId: string; userName: string; originalText: string; originalLanguage: string; timestamp: string; audioUrl?: string }>
+            }
+            settings?: { adminUserId?: string; joinMode?: "public" | "password" } | null
+          }
           | null
         if (!data?.success || !data.room) return
 
         const room = data.room
+        const nextSettings =
+          data.settings && typeof data.settings.adminUserId === "string"
+            ? ({ adminUserId: data.settings.adminUserId, joinMode: data.settings.joinMode === "password" ? "password" : "public" } as const)
+            : null
+        if (nextSettings) setRoomSettings(nextSettings)
         setUsers(room.users)
+        if (!leaveInitiatedRef.current && !room.users.some((u) => u.id === roomUserId)) {
+          exitRoom(t("toast.kickedTitle"), t("toast.kickedDesc"))
+          return
+        }
 
         const avatarById = new Map(room.users.map((u) => [u.id, u.avatar]))
         const newMessages = await Promise.all(
@@ -200,7 +230,11 @@ export function VoiceChatInterface() {
     }
   }, [exitRoom, isInRoom, roomId, roomUserId, t, targetLanguage.name])
 
-  const handleJoinRoom = async (newRoomId: string, newUserName: string) => {
+  const handleJoinRoom = async (
+    newRoomId: string,
+    newUserName: string,
+    options?: { joinPassword?: string; createJoinMode?: "public" | "password"; createPassword?: string },
+  ): Promise<{ success: boolean; needsPassword?: boolean }> => {
     try {
       const participantId = user?.id ? `${user.id}:${ensureClientInstanceId()}` : anonUserId
       const response = await fetch("/api/rooms", {
@@ -214,22 +248,51 @@ export function VoiceChatInterface() {
           sourceLanguage: userLanguage.name,
           targetLanguage: targetLanguage.name,
           avatarUrl: profile?.avatar_url ?? undefined,
+          joinPassword: options?.joinPassword,
+          createJoinMode: options?.createJoinMode,
+          createPassword: options?.createPassword,
         }),
       })
 
-      const data = await response.json()
+      const data = (await response.json().catch(() => null)) as
+        | { success?: boolean; room?: { users: User[] }; settings?: { adminUserId?: string; joinMode?: "public" | "password" } | null; error?: string }
+        | null
+      if (!response.ok || !data?.success || !data.room) {
+        if (response.status === 401) {
+          toast({
+            title: t("toast.errorTitle"),
+            description: options?.joinPassword ? t("toast.passwordInvalid") : t("toast.passwordRequired"),
+            variant: "destructive",
+          })
+          return { success: false, needsPassword: true }
+        }
+        toast({
+          title: t("toast.errorTitle"),
+          description: data?.error ? String(data.error) : t("toast.joinFailed"),
+          variant: "destructive",
+        })
+        return { success: false }
+      }
       if (data.success) {
+        leaveInitiatedRef.current = false
         setRoomId(newRoomId)
         setUserName(newUserName)
         setRoomUserId(participantId)
         setJoinedAuthUserId(user?.id ?? null)
         setIsInRoom(true)
         setUsers(data.room.users)
+        const nextSettings =
+          data.settings && typeof data.settings.adminUserId === "string"
+            ? ({ adminUserId: data.settings.adminUserId, joinMode: data.settings.joinMode === "password" ? "password" : "public" } as const)
+            : null
+        setRoomSettings(nextSettings)
         toast({
           title: t("toast.joinedTitle"),
           description: t("toast.joinedDesc", { roomId: newRoomId }),
         })
+        return { success: true }
       }
+      return { success: false }
     } catch (error) {
       console.error("[v0] Join room error:", error)
       toast({
@@ -237,11 +300,92 @@ export function VoiceChatInterface() {
         description: t("toast.joinFailed"),
         variant: "destructive",
       })
+      return { success: false }
+    }
+  }
+
+  const handleKickUser = useCallback(
+    async (targetUserId: string) => {
+      try {
+        const res = await fetch("/api/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "kick", roomId, userId: roomUserId, targetUserId }),
+        })
+        if (res.status === 410) {
+          exitRoom(t("toast.expiredTitle"), t("toast.expiredDesc"))
+          return
+        }
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null
+          toast({
+            title: t("toast.errorTitle"),
+            description: data?.error ? String(data.error) : t("toast.kickFailed"),
+            variant: "destructive",
+          })
+          return
+        }
+        toast({ title: t("toast.kickSuccessTitle"), description: t("toast.kickSuccessDesc") })
+      } catch {
+        toast({ title: t("toast.errorTitle"), description: t("toast.kickFailed"), variant: "destructive" })
+      }
+    },
+    [exitRoom, roomId, roomUserId, t, toast],
+  )
+
+  const isAdmin = Boolean(roomSettings && roomSettings.adminUserId === roomUserId)
+
+  const openRoomSettings = () => {
+    const nextMode = roomSettings?.joinMode ?? "public"
+    setRoomSettingsJoinMode(nextMode)
+    setRoomSettingsPassword("")
+    setRoomSettingsOpen(true)
+  }
+
+  const saveRoomSettings = async () => {
+    if (!roomId || !roomUserId) return
+    setRoomSettingsSaving(true)
+    try {
+      const res = await fetch("/api/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_settings",
+          roomId,
+          userId: roomUserId,
+          joinMode: roomSettingsJoinMode,
+          password: roomSettingsPassword,
+        }),
+      })
+      if (res.status === 410) {
+        exitRoom(t("toast.expiredTitle"), t("toast.expiredDesc"))
+        return
+      }
+      const data = (await res.json().catch(() => null)) as
+        | { success?: boolean; settings?: { adminUserId?: string; joinMode?: "public" | "password" } | null; error?: string }
+        | null
+      if (!res.ok || !data?.success || !data.settings?.adminUserId) {
+        toast({
+          title: t("toast.errorTitle"),
+          description: data?.error ? String(data.error) : t("toast.roomSettingsSaveFailed"),
+          variant: "destructive",
+        })
+        return
+      }
+      setRoomSettings({
+        adminUserId: data.settings.adminUserId,
+        joinMode: data.settings.joinMode === "password" ? "password" : "public",
+      })
+      setRoomSettingsOpen(false)
+      toast({ title: t("toast.roomSettingsSavedTitle"), description: t("toast.roomSettingsSavedDesc") })
+    } finally {
+      setRoomSettingsSaving(false)
     }
   }
 
   const handleLeaveRoom = useCallback(async () => {
     try {
+      leaveInitiatedRef.current = true
       const res = await fetch("/api/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -370,7 +514,13 @@ export function VoiceChatInterface() {
       <div className="flex-1 flex max-w-screen-2xl w-full mx-auto px-4 py-4 gap-4 overflow-hidden min-h-0">
         <div className="hidden lg:flex w-64 flex-shrink-0 flex-col gap-4">
           <div className="min-h-0 flex-1">
-            <UserList users={users} currentUserId={roomUserId} />
+            <UserList
+              users={users}
+              currentUserId={roomUserId}
+              adminUserId={roomSettings?.adminUserId ?? null}
+              canKick={isAdmin}
+              onKick={handleKickUser}
+            />
           </div>
           <AdSlot slotKey="room_sidebar" variant="sidebar" limit={2} fetchLimit={6} rotateMs={7000} />
         </div>
@@ -395,6 +545,17 @@ export function VoiceChatInterface() {
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </Button>
+              {isAdmin ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={openRoomSettings}
+                  className="h-9 w-9 shrink-0"
+                  aria-label={t("roomSettings.title")}
+                >
+                  <Settings className="w-4 h-4" />
+                </Button>
+              ) : null}
               <Button
                 variant="ghost"
                 size="icon"
@@ -431,6 +592,58 @@ export function VoiceChatInterface() {
           </div>
         </div>
       </div>
+
+      <Dialog open={roomSettingsOpen} onOpenChange={setRoomSettingsOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>{t("roomSettings.title")}</DialogTitle>
+            <DialogDescription>{t("roomSettings.desc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("roomSettings.joinModeLabel")}</Label>
+              <RadioGroup
+                value={roomSettingsJoinMode}
+                onValueChange={(v) => setRoomSettingsJoinMode(v as "public" | "password")}
+                className="grid gap-2"
+              >
+                <label className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 cursor-pointer">
+                  <RadioGroupItem value="public" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{t("roomSettings.joinModePublic")}</div>
+                    <div className="text-xs text-muted-foreground">{t("roomSettings.joinModePublicDesc")}</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 cursor-pointer">
+                  <RadioGroupItem value="password" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{t("roomSettings.joinModePassword")}</div>
+                    <div className="text-xs text-muted-foreground">{t("roomSettings.joinModePasswordDesc")}</div>
+                  </div>
+                </label>
+              </RadioGroup>
+            </div>
+
+            {roomSettingsJoinMode === "password" ? (
+              <div className="space-y-2">
+                <Label htmlFor="roomSettingsPassword">{t("roomSettings.passwordLabel")}</Label>
+                <Input
+                  id="roomSettingsPassword"
+                  type="password"
+                  placeholder={t("roomSettings.passwordPlaceholder")}
+                  value={roomSettingsPassword}
+                  onChange={(e) => setRoomSettingsPassword(e.target.value)}
+                />
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button onClick={saveRoomSettings} disabled={roomSettingsSaving}>
+              {roomSettingsSaving ? t("roomSettings.saving") : t("roomSettings.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

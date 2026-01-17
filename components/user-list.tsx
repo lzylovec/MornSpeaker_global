@@ -1,10 +1,22 @@
 "use client"
 
-import { Users, Globe } from "lucide-react"
+import { Users, Globe, UserX } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useI18n } from "@/components/i18n-provider"
+import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export type User = {
   id: string
@@ -17,9 +29,12 @@ export type User = {
 type UserListProps = {
   users: User[]
   currentUserId: string
+  adminUserId?: string | null
+  canKick?: boolean
+  onKick?: (targetUserId: string) => void | Promise<void>
 }
 
-export function UserList({ users, currentUserId }: UserListProps) {
+export function UserList({ users, currentUserId, adminUserId = null, canKick = false, onKick }: UserListProps) {
   const { t } = useI18n()
   return (
     <Card className="h-full flex flex-col overflow-hidden">
@@ -50,9 +65,44 @@ export function UserList({ users, currentUserId }: UserListProps) {
                 </p>
               </div>
             </div>
-            <Badge variant="secondary" className="text-xs">
-              {t("users.online")}
-            </Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              {adminUserId && user.id === adminUserId ? (
+                <Badge variant="secondary" className="text-xs">
+                  {t("users.admin")}
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-xs">
+                  {t("users.online")}
+                </Badge>
+              )}
+              {canKick && onKick && user.id !== currentUserId && (!adminUserId || user.id !== adminUserId) ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("users.kick")}>
+                      <UserX className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t("users.kickConfirmTitle")}</AlertDialogTitle>
+                      <AlertDialogDescription>{t("users.kickConfirmDesc")}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={(e) => {
+                          e.preventDefault()
+                          void onKick(user.id)
+                        }}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {t("users.kick")}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : null}
+            </div>
           </div>
         ))}
       </CardContent>
