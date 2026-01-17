@@ -1,6 +1,6 @@
 "use client"
 
-import { Mic2, Trash2, Users } from "lucide-react"
+import { Mic2, Trash2, Users, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SettingsDialog, type AppSettings } from "@/components/settings-dialog"
@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation"
 import { useI18n } from "@/components/i18n-provider"
 import { UI_LOCALES, type UiLocale } from "@/lib/i18n"
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { useState } from "react"
 
 type HeaderProps = {
   onClearChat?: () => void
@@ -22,6 +24,7 @@ export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId
   const { profile, user, isLoading, signOut } = useAuth()
   const router = useRouter()
   const { locale, setLocale, t } = useI18n()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const currentLocale = UI_LOCALES.find((l) => l.value === locale) ?? UI_LOCALES[0]
   const persistLocale = async (next: UiLocale) => {
     const prev = locale
@@ -62,50 +65,127 @@ export function Header({ onClearChat, messageCount = 0, onSettingsChange, roomId
         </div>
 
         <div className="flex items-center gap-2">
-          <Select value={locale} onValueChange={(value) => void persistLocale(value as UiLocale)}>
-            <SelectTrigger className="w-[110px]">
-              <SelectValue>
-                <span className="flex items-center gap-2">
-                  <span>{currentLocale.flag}</span>
-                  <span className="hidden sm:inline">{currentLocale.label}</span>
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {UI_LOCALES.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
+          {/* Desktop Actions */}
+          <div className="hidden md:flex items-center gap-2">
+            <Select value={locale} onValueChange={(value) => void persistLocale(value as UiLocale)}>
+              <SelectTrigger className="w-[110px]">
+                <SelectValue>
                   <span className="flex items-center gap-2">
-                    <span>{opt.flag}</span>
-                    <span>{opt.label}</span>
+                    <span>{currentLocale.flag}</span>
+                    <span className="hidden sm:inline">{currentLocale.label}</span>
                   </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {!isLoading && user && (
-            <>
-              <div className="hidden sm:block text-xs text-muted-foreground max-w-[220px] truncate">
-                {profile?.display_name || user.email}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  await signOut()
-                  router.replace("/login")
-                }}
-              >
-                {t("common.logout")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {UI_LOCALES.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span className="flex items-center gap-2">
+                      <span>{opt.flag}</span>
+                      <span>{opt.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!isLoading && user && (
+              <>
+                <div className="hidden lg:block text-xs text-muted-foreground max-w-[220px] truncate">
+                  {profile?.display_name || user.email}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    await signOut()
+                    router.replace("/login")
+                  }}
+                >
+                  {t("common.logout")}
+                </Button>
+              </>
+            )}
+            {messageCount > 0 && onClearChat && (
+              <Button variant="ghost" size="sm" onClick={onClearChat} className="gap-2">
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden lg:inline">{t("common.clearChat")}</span>
               </Button>
-            </>
-          )}
-          {messageCount > 0 && onClearChat && (
-            <Button variant="ghost" size="sm" onClick={onClearChat} className="gap-2">
-              <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">{t("common.clearChat")}</span>
-            </Button>
-          )}
-          <SettingsDialog onSettingsChange={onSettingsChange} />
+            )}
+            <SettingsDialog onSettingsChange={onSettingsChange} />
+          </div>
+
+          {/* Mobile Actions */}
+          <div className="md:hidden flex items-center gap-2">
+            <SettingsDialog onSettingsChange={onSettingsChange} />
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right">
+                <SheetHeader>
+                  <SheetTitle>{t("app.name")}</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4 mt-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Language</label>
+                    <Select value={locale} onValueChange={(value) => void persistLocale(value as UiLocale)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          <span className="flex items-center gap-2">
+                            <span>{currentLocale.flag}</span>
+                            <span>{currentLocale.label}</span>
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UI_LOCALES.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <span className="flex items-center gap-2">
+                              <span>{opt.flag}</span>
+                              <span>{opt.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {!isLoading && user && (
+                    <div className="space-y-2 border-t pt-4">
+                      <div className="text-sm font-medium">
+                        {profile?.display_name || user.email}
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={async () => {
+                          await signOut()
+                          router.replace("/login")
+                        }}
+                      >
+                        {t("common.logout")}
+                      </Button>
+                    </div>
+                  )}
+
+                  {messageCount > 0 && onClearChat && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start gap-2 text-destructive hover:text-destructive" 
+                      onClick={() => {
+                        onClearChat()
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>{t("common.clearChat")}</span>
+                    </Button>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
     </header>

@@ -118,6 +118,35 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0
 }
 
+type JoinSessionPolicy = "allow" | "single_account"
+
+function normalizeJoinSessionPolicy(value: unknown): JoinSessionPolicy {
+  if (typeof value !== "string") return "allow"
+  const v = value.trim().toLowerCase()
+  if (v === "single_account" || v === "single-account" || v === "singleaccount") return "single_account"
+  return "allow"
+}
+
+function getJoinSessionPolicy(): JoinSessionPolicy {
+  const direct = normalizeJoinSessionPolicy(process.env.VOICELINK_JOIN_SESSION_POLICY)
+  if (direct !== "allow") return direct
+
+  const flag = String(process.env.VOICELINK_KICK_SAME_ACCOUNT_ON_JOIN ?? "").trim().toLowerCase()
+  if (flag === "1" || flag === "true" || flag === "yes" || flag === "on") return "single_account"
+
+  return "allow"
+}
+
+function getAccountIdFromUserId(userId: string): string | null {
+  const raw = typeof userId === "string" ? userId.trim() : ""
+  if (!raw) return null
+  const idx = raw.indexOf(":")
+  if (idx <= 0) return null
+  const base = raw.slice(0, idx).trim()
+  if (!base) return null
+  return base
+}
+
 type RoomJoinMode = "public" | "password"
 
 type RoomSettings = {
@@ -315,10 +344,29 @@ export async function POST(request: NextRequest) {
 
       const rid = roomId.trim()
       const uid = userId.trim()
-      const existingRoom = await store.getRoom(rid).catch(() => null)
+      let existingRoom = await store.getRoom(rid).catch(() => null)
       let settings = await getRoomSettings(supabase, rid).catch(() => null)
       const requestedCreateJoinMode = normalizeJoinMode(createJoinMode) ?? null
       const requestedCreatePassword = typeof createPassword === "string" ? createPassword : null
+      const joinSessionPolicy = getJoinSessionPolicy()
+      const accountId = getAccountIdFromUserId(uid)
+
+      if (joinSessionPolicy === "single_account" && accountId && existingRoom?.users?.length) {
+        const staleUserIds = existingRoom.users
+          .map((u) => u.id)
+          .filter((id) => id !== uid && getAccountIdFromUserId(id) === accountId)
+
+        if (staleUserIds.length > 0) {
+          await Promise.all(staleUserIds.map((staleId) => store.leaveRoom(rid, staleId).catch(() => null)))
+          existingRoom = await store.getRoom(rid).catch(() => null)
+        }
+
+        if (settings && getAccountIdFromUserId(settings.adminUserId) === accountId && settings.adminUserId !== uid) {
+          const next: RoomSettings = { ...settings, adminUserId: uid }
+          await setRoomSettings(supabase, rid, next)
+          settings = next
+        }
+      }
 
       if (!settings) {
         const canClaimAdmin = !existingRoom || existingRoom.users.length === 0
