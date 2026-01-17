@@ -54,7 +54,7 @@ export type Message = {
 type RoomSettings = { adminUserId: string; joinMode: "public" | "password" } | null
 
 export function VoiceChatInterface() {
-  const { profile, user } = useAuth()
+  const { profile, user, updateUserMetadata } = useAuth()
   const { t } = useI18n()
   const [isInRoom, setIsInRoom] = useState(false)
   const [roomId, setRoomId] = useState("")
@@ -69,7 +69,6 @@ export function VoiceChatInterface() {
 
   const [messages, setMessages] = useState<Message[]>([])
   const [userLanguage, setUserLanguage] = useState<Language>(SUPPORTED_LANGUAGES[0])
-  const [targetLanguage, setTargetLanguage] = useState<Language>(SUPPORTED_LANGUAGES[1])
   const [isProcessing, setIsProcessing] = useState(false)
   const [settings, setSettings] = useState<AppSettings>({
     darkMode: false,
@@ -87,6 +86,67 @@ export function VoiceChatInterface() {
   const [roomSettingsJoinMode, setRoomSettingsJoinMode] = useState<"public" | "password">("public")
   const [roomSettingsPassword, setRoomSettingsPassword] = useState("")
   const [roomSettingsSaving, setRoomSettingsSaving] = useState(false)
+  const languagePrefsInitKeyRef = useRef<string | null>(null)
+  const lastSavedLanguagePrefsRef = useRef<{ userKey: string; source: string } | null>(null)
+
+  const resolveLanguageCode = useCallback((value: string): string => {
+    const byCode = SUPPORTED_LANGUAGES.find((l) => l.code === value)
+    if (byCode) return byCode.code
+    const byName = SUPPORTED_LANGUAGES.find((l) => l.name === value)
+    if (byName) return byName.code
+    return value
+  }, [])
+
+  useEffect(() => {
+    const userKey = user?.id ?? "anon"
+    if (languagePrefsInitKeyRef.current === userKey) return
+    languagePrefsInitKeyRef.current = userKey
+
+    const meta = (user?.user_metadata ?? {}) as Record<string, unknown>
+    const rawSource =
+      (meta.sourceLanguageCode as unknown) ??
+      (meta.source_language_code as unknown) ??
+      (meta.sourceLanguage as unknown) ??
+      (meta.source_language as unknown)
+
+    const readLocal = (key: string) => {
+      if (typeof window === "undefined") return null
+      const value = window.localStorage.getItem(key)
+      if (typeof value !== "string") return null
+      const trimmed = value.trim()
+      return trimmed ? trimmed : null
+    }
+
+    const localSource =
+      readLocal(`voicelink_source_language:${userKey}`) ??
+      (userKey !== "anon" ? readLocal("voicelink_source_language") : null) ??
+      readLocal("voicelink_source_language:anon")
+
+    const resolvedSource =
+      typeof rawSource === "string" ? resolveLanguageCode(rawSource) : localSource ? resolveLanguageCode(localSource) : null
+
+    const nextSource = resolvedSource ? SUPPORTED_LANGUAGES.find((l) => l.code === resolvedSource) : null
+    if (nextSource) setUserLanguage(nextSource)
+  }, [resolveLanguageCode, user?.id, user?.user_metadata])
+
+  useEffect(() => {
+    const userKey = user?.id ?? "anon"
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(`voicelink_source_language:${userKey}`, userLanguage.code)
+      if (userKey === "anon") {
+        window.localStorage.setItem("voicelink_source_language", userLanguage.code)
+      }
+    }
+
+    if (!user) return
+    const last = lastSavedLanguagePrefsRef.current
+    if (last && last.userKey === userKey && last.source === userLanguage.code) return
+    lastSavedLanguagePrefsRef.current = { userKey, source: userLanguage.code }
+    void updateUserMetadata({ sourceLanguageCode: userLanguage.code }).catch((error) => {
+      console.error("[v0] Save language prefs failed:", error)
+    })
+  }, [updateUserMetadata, user, userLanguage.code])
 
   const ensureClientInstanceId = useCallback(() => {
     if (clientInstanceIdRef.current) return clientInstanceIdRef.current
@@ -176,7 +236,9 @@ export function VoiceChatInterface() {
         const avatarById = new Map(room.users.map((u) => [u.id, u.avatar]))
         const newMessages = await Promise.all(
           room.messages.map(async (msg) => {
-            const cacheKey = `${msg.id}:${targetLanguage.name}`
+            const sourceLanguageCode = resolveLanguageCode(msg.originalLanguage)
+            const targetLanguageCode = userLanguage.code
+            const cacheKey = `${msg.id}:${targetLanguageCode}`
             const cached = cache.get(cacheKey)
 
             const isCurrentUser = msg.userId === roomUserId
@@ -184,9 +246,9 @@ export function VoiceChatInterface() {
 
             if (typeof cached === "string" && cached.length > 0) {
               translatedText = cached
-            } else if (msg.originalLanguage !== targetLanguage.name) {
+            } else if (sourceLanguageCode !== targetLanguageCode) {
               try {
-                translatedText = await translateText(msg.originalText, msg.originalLanguage, targetLanguage.name)
+                translatedText = await translateText(msg.originalText, sourceLanguageCode, targetLanguageCode)
                 cache.set(cacheKey, translatedText)
               } catch (error) {
                 console.error("[v0] Translation error:", error)
@@ -199,8 +261,8 @@ export function VoiceChatInterface() {
               userName: msg.userName,
               originalText: msg.originalText,
               translatedText,
-              originalLanguage: msg.originalLanguage,
-              targetLanguage: targetLanguage.name,
+              originalLanguage: sourceLanguageCode,
+              targetLanguage: targetLanguageCode,
               timestamp: new Date(msg.timestamp),
               isUser: isCurrentUser,
               audioUrl: msg.audioUrl,
@@ -228,7 +290,7 @@ export function VoiceChatInterface() {
       }
       cache.clear()
     }
-  }, [exitRoom, isInRoom, roomId, roomUserId, t, targetLanguage.name])
+  }, [exitRoom, isInRoom, resolveLanguageCode, roomId, roomUserId, t, userLanguage.code])
 
   const handleJoinRoom = async (
     newRoomId: string,
@@ -246,7 +308,7 @@ export function VoiceChatInterface() {
           userId: participantId,
           userName: newUserName,
           sourceLanguage: userLanguage.name,
-          targetLanguage: targetLanguage.name,
+          targetLanguage: userLanguage.name,
           avatarUrl: profile?.avatar_url ?? undefined,
           joinPassword: options?.joinPassword,
           createJoinMode: options?.createJoinMode,
@@ -427,11 +489,6 @@ export function VoiceChatInterface() {
     }
   }
 
-  const handleLanguageSwap = () => {
-    setUserLanguage(targetLanguage)
-    setTargetLanguage(userLanguage)
-  }
-
   const handleClearChat = useCallback(() => {
     setMessages([])
     toast({
@@ -455,8 +512,7 @@ export function VoiceChatInterface() {
           userId: roomUserId,
           userName,
           originalText: transcribedText,
-          originalLanguage: userLanguage.name,
-          targetLanguage: targetLanguage.name,
+          originalLanguage: userLanguage.code,
           timestamp: new Date().toISOString(),
           audioUrl,
         }
@@ -494,7 +550,7 @@ export function VoiceChatInterface() {
         setIsProcessing(false)
       }
     },
-    [exitRoom, roomId, roomUserId, t, targetLanguage.name, toast, userLanguage.code, userLanguage.name, userName],
+    [exitRoom, roomId, roomUserId, t, toast, userLanguage.code, userLanguage.name, userName],
   )
 
   if (!isInRoom) {
@@ -570,11 +626,8 @@ export function VoiceChatInterface() {
             <div className="shrink-0 px-3 py-2 border-b border-border">
               <LanguageSelector
                 variant="compact"
-                userLanguage={userLanguage}
-                targetLanguage={targetLanguage}
-                onUserLanguageChange={setUserLanguage}
-                onTargetLanguageChange={setTargetLanguage}
-                onSwap={handleLanguageSwap}
+                language={userLanguage}
+                onLanguageChange={setUserLanguage}
               />
             </div>
 

@@ -111,18 +111,6 @@ export function ChatArea({
     }
   }, [messages, autoPlay, speak])
 
-  const handlePlayOriginal = (message: Message) => {
-    if (playingMessageId === `${message.id}-original` && isSpeaking) {
-      stop()
-      setPlayingMessageId(null)
-    } else {
-      stop()
-      const languageCode = getSpeechLanguageCode(message.originalLanguage)
-      speak(message.originalText, languageCode)
-      setPlayingMessageId(`${message.id}-original`)
-    }
-  }
-
   const handlePlayTranslated = (message: Message) => {
     if (playingMessageId === `${message.id}-translated` && isSpeaking) {
       stop()
@@ -201,39 +189,21 @@ export function ChatArea({
               {!message.isUser && <p className="text-xs font-semibold mb-2 opacity-70">{message.userName}</p>}
 
               <div className="flex items-start justify-between gap-2 mb-2">
-                <p className="text-sm font-medium opacity-80">{getLanguageLabel(message.originalLanguage)}</p>
+                <p className="text-sm font-medium opacity-80">{getLanguageLabel(message.targetLanguage)}</p>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 -mt-1 hover:bg-background/20"
-                  onClick={() => handlePlayOriginal(message)}
+                  onClick={() => handlePlayTranslated(message)}
                 >
-                  {playingMessageId === `${message.id}-original` && isSpeaking ? (
+                  {playingMessageId === `${message.id}-translated` && isSpeaking ? (
                     <VolumeX className="w-4 h-4" />
                   ) : (
                     <Volume2 className="w-4 h-4" />
                   )}
                 </Button>
               </div>
-              <p className="text-base leading-relaxed mb-3">{message.originalText}</p>
-              <div className="pt-3 border-t border-current/20">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="text-sm font-medium opacity-80">{getLanguageLabel(message.targetLanguage)}</p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 hover:bg-background/20"
-                    onClick={() => handlePlayTranslated(message)}
-                  >
-                    {playingMessageId === `${message.id}-translated` && isSpeaking ? (
-                      <VolumeX className="w-4 h-4" />
-                    ) : (
-                      <Volume2 className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-                <p className="text-base leading-relaxed">{message.translatedText}</p>
-              </div>
+              <p className="text-base leading-relaxed">{message.translatedText}</p>
               <div className="mt-2 text-xs opacity-60 text-right">{formatTime(message.timestamp)}</div>
             </div>
 

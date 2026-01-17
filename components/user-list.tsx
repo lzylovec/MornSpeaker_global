@@ -61,7 +61,7 @@ export function UserList({ users, currentUserId, adminUserId = null, canKick = f
               <div className="flex items-center gap-1 mt-1">
                 <Globe className="w-3 h-3 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">
-                  {user.sourceLanguage} → {user.targetLanguage}
+                  {user.sourceLanguage}
                 </p>
               </div>
             </div>

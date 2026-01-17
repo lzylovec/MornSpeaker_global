@@ -18,6 +18,7 @@ type AuthContextValue = {
   isLoading: boolean
   refreshProfile: () => Promise<void>
   updateProfile: (patch: { display_name?: string; avatar_url?: string | null }) => Promise<void>
+  updateUserMetadata: (patch: Record<string, unknown>) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -69,6 +70,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateUserMetadata = useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!user) return
+      const { data, error } = await supabase.auth.updateUser({ data: patch })
+      if (error) throw error
+      if (data.user) setUser(data.user)
+    },
+    [supabase, user],
+  )
+
   const signOut = async () => {
     await supabase.auth.signOut()
   }
@@ -109,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       refreshProfile,
       updateProfile,
+      updateUserMetadata,
       signOut
     }}>
       {children}
